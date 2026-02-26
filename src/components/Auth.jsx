@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-export default function Auth() {
-  const [tab, setTab] = useState('login')
+export default function Auth({ defaultTab = 'login', onBack }) {
+  const [tab, setTab] = useState(defaultTab)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -46,6 +46,11 @@ export default function Auth() {
 
   return (
     <div className="auth-wrap">
+      {onBack && (
+        <button onClick={onBack} style={{ position: 'absolute', top: '20px', left: '24px', background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: '0.9rem' }}>
+          ← Back
+        </button>
+      )}
       <div className="auth-box">
         <div className="auth-logo">
           <div style={{ fontSize: '2.8rem' }}>⚔️</div>

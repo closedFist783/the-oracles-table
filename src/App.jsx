@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import Auth from './components/Auth'
+import Landing from './components/Landing'
 import Dashboard from './components/Dashboard'
 import CharacterCreator from './components/CharacterCreator'
 import Campaign from './components/Campaign'
@@ -13,6 +14,7 @@ export default function App() {
   const [activeCampaign, setActiveCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
   const [stripeToast, setStripeToast] = useState(null) // 'success' | 'canceled' | null
+  const [authMode, setAuthMode] = useState(null) // null=landing | 'signin' | 'signup'
 
   // Handle Stripe redirect back to the app
   useEffect(() => {
@@ -71,7 +73,20 @@ export default function App() {
     </div>
   )
 
-  if (!session) return <Auth />
+  if (!session) {
+    if (!authMode) return (
+      <Landing
+        onSignUp={() => setAuthMode('signup')}
+        onSignIn={() => setAuthMode('signin')}
+      />
+    )
+    return (
+      <Auth
+        defaultTab={authMode === 'signup' ? 'signup' : 'login'}
+        onBack={() => setAuthMode(null)}
+      />
+    )
+  }
 
   return (
     <div className="app">
