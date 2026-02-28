@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const RACES = [
@@ -95,9 +95,8 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
   const [coins, setCoins] = useState(profile?.coins ?? 0)
   const [rerolling, setRerolling] = useState(false)
 
-  // Drag state
-  const drag = useRef(null) // { value, source: 'pool' | 'stat', statIdx?: number }
-  const [overSlot, setOverSlot] = useState(null) // 'pool' | number
+  // Tap-to-select state (works on mobile + desktop)
+  const [selected, setSelected] = useState(null) // null | { value, source:'pool'|'stat', idx }
 
   const steps = ['Race', 'Class', 'Background', 'Stats', 'Details']
   const statsValid = assigned.every(v => v !== null)
@@ -128,54 +127,49 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
     setError('')
   }
 
-  // ── Drag handlers ─────────────────────────────────────────────────────────
-  function onDragStartPool(val) {
-    drag.current = { value: val, source: 'pool' }
+  // ── Tap-to-select handlers (mobile + desktop) ────────────────────────────
+  function handlePoolTap(val, poolIdx) {
+    if (selected?.source === 'pool' && selected.idx === poolIdx) {
+      setSelected(null) // deselect
+    } else {
+      setSelected({ value: val, source: 'pool', idx: poolIdx })
+    }
   }
 
-  function onDragStartStat(statIdx) {
-    if (assigned[statIdx] === null) return
-    drag.current = { value: assigned[statIdx], source: 'stat', statIdx }
-  }
-
-  function onDropStat(statIdx) {
-    if (!drag.current) return
-    const { value, source, statIdx: fromIdx } = drag.current
+  function handleStatTap(statIdx) {
+    if (!selected) {
+      // Nothing selected — select this slot to move its value
+      if (assigned[statIdx] !== null) setSelected({ value: assigned[statIdx], source: 'stat', idx: statIdx })
+      return
+    }
     const nextAssigned = [...assigned]
     const nextPool = [...statPool]
-
-    if (source === 'pool') {
-      // Place from pool into stat slot; if slot had a value, return it to pool
-      if (nextAssigned[statIdx] !== null) nextPool.push(nextAssigned[statIdx])
-      nextAssigned[statIdx] = value
-      const poolIdx = nextPool.indexOf(value)
-      if (poolIdx !== -1) nextPool.splice(poolIdx, 1)
+    if (selected.source === 'pool') {
+      // Pool → Stat
+      if (nextAssigned[statIdx] !== null) nextPool.push(nextAssigned[statIdx]) // return displaced value
+      nextPool.splice(selected.idx, 1)
+      nextAssigned[statIdx] = selected.value
     } else {
-      // Dragging from another stat slot — swap
-      nextAssigned[fromIdx] = nextAssigned[statIdx] // put target's value into source
-      nextAssigned[statIdx] = value
+      // Stat → Stat swap
+      const fromIdx = selected.idx
+      if (selected.idx === statIdx) { setSelected(null); return } // tap same → deselect
+      nextAssigned[fromIdx] = nextAssigned[statIdx]
+      nextAssigned[statIdx] = selected.value
     }
-
     setAssigned(nextAssigned)
     setStatPool(nextPool)
-    drag.current = null
-    setOverSlot(null)
+    setSelected(null)
   }
 
-  function onDropPool() {
-    if (!drag.current || drag.current.source !== 'stat') return
-    const { value, statIdx } = drag.current
+  function handlePoolReturn(statIdx) {
+    // Return assigned value back to pool
+    if (assigned[statIdx] === null) return
     const nextAssigned = [...assigned]
+    const nextPool = [...statPool, nextAssigned[statIdx]]
     nextAssigned[statIdx] = null
     setAssigned(nextAssigned)
-    setStatPool(prev => [...prev, value])
-    drag.current = null
-    setOverSlot(null)
-  }
-
-  function onDragOver(e, slot) {
-    e.preventDefault()
-    setOverSlot(slot)
+    setStatPool(nextPool)
+    setSelected(null)
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
@@ -262,11 +256,11 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
           </div>
         </>)}
 
-        {/* ── Step 3: Stats (drag & drop) ── */}
+        {/* ── Step 3: Stats (tap to assign) ── */}
         {step === 3 && (<>
           <h3 style={{ marginBottom: '6px' }}>Roll & Assign Ability Scores</h3>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-dim)', marginBottom: '20px' }}>
-            Roll your scores, then drag each number onto a stat.
+            Roll your scores, then tap a number and tap a stat to assign it.
           </p>
 
           {/* Roll button */}
@@ -296,61 +290,69 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
 
           {hasRolled && (<>
             {/* Score pool */}
-            <div
-              style={{
-                display: 'flex', gap: '10px', flexWrap: 'wrap',
-                minHeight: '52px', padding: '10px 12px',
-                background: overSlot === 'pool' ? 'rgba(201,168,76,0.08)' : 'var(--surface2)',
-                border: `2px dashed ${overSlot === 'pool' ? 'var(--gold)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius)', marginBottom: '20px',
-                transition: 'border-color 0.15s, background 0.15s',
-              }}
-              onDragOver={e => onDragOver(e, 'pool')}
-              onDragLeave={() => setOverSlot(null)}
-              onDrop={onDropPool}
-            >
-              {statPool.length === 0
-                ? <span style={{ color: 'var(--text-dim)', fontSize: '0.82rem', alignSelf: 'center' }}>All scores assigned</span>
-                : statPool.map((val, i) => (
-                  <div
-                    key={i}
-                    draggable
-                    onDragStart={() => onDragStartPool(val)}
-                    onDragEnd={() => setOverSlot(null)}
-                    style={{
-                      padding: '6px 16px', background: 'var(--gold)', color: '#1a1200',
-                      borderRadius: 'var(--radius)', fontWeight: 'bold', fontSize: '1.1rem',
-                      cursor: 'grab', userSelect: 'none',
-                    }}
-                  >
-                    {val}
-                  </div>
-                ))}
+            <div style={{ marginBottom: '8px', fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Available Scores
             </div>
+            <div style={{
+              display: 'flex', gap: '10px', flexWrap: 'wrap',
+              minHeight: '52px', padding: '10px 12px',
+              background: 'var(--surface2)',
+              border: `2px dashed var(--border)`,
+              borderRadius: 'var(--radius)', marginBottom: '20px',
+            }}>
+              {statPool.length === 0
+                ? <span style={{ color: 'var(--text-dim)', fontSize: '0.82rem', alignSelf: 'center' }}>All scores assigned ✓</span>
+                : statPool.map((val, i) => {
+                  const isSel = selected?.source === 'pool' && selected.idx === i
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => handlePoolTap(val, i)}
+                      style={{
+                        padding: '8px 18px',
+                        background: isSel ? 'var(--gold)' : 'var(--surface)',
+                        color: isSel ? '#1a1200' : 'var(--gold)',
+                        border: `2px solid ${isSel ? 'var(--gold)' : 'var(--gold-dim)'}`,
+                        borderRadius: 'var(--radius)', fontWeight: 'bold', fontSize: '1.1rem',
+                        cursor: 'pointer', userSelect: 'none',
+                        boxShadow: isSel ? '0 0 12px rgba(201,168,76,0.4)' : 'none',
+                        transition: 'all 0.15s',
+                        minWidth: '44px', textAlign: 'center',
+                      }}
+                    >
+                      {val}
+                    </div>
+                  )
+                })}
+            </div>
+
+            {/* Hint */}
+            {selected && (
+              <p style={{ fontSize: '0.8rem', color: 'var(--gold)', marginBottom: '12px' }}>
+                {selected.source === 'pool' ? `Tap a stat to assign ${selected.value}` : `Tap another stat to swap, or tap the same to deselect`}
+              </p>
+            )}
 
             {/* Stat slots */}
             <div className="stats-row" style={{ marginBottom: '8px' }}>
               {STAT_NAMES.map((stat, i) => {
                 const val = assigned[i]
-                const isOver = overSlot === i
+                const isSel = selected?.source === 'stat' && selected.idx === i
+                const willReceive = selected !== null && !isSel
                 return (
                   <div
                     key={stat}
                     className="stat-box"
+                    onClick={() => handleStatTap(i)}
                     style={{
-                      border: `2px ${val !== null ? 'solid' : 'dashed'} ${isOver ? 'var(--gold)' : val !== null ? 'var(--gold-dim)' : 'var(--border)'}`,
-                      background: isOver ? 'rgba(201,168,76,0.08)' : undefined,
-                      cursor: val !== null ? 'grab' : 'default',
+                      border: `2px ${val !== null ? 'solid' : 'dashed'} ${isSel ? 'var(--gold)' : willReceive && val !== null ? 'var(--gold-dim)' : val !== null ? 'var(--gold-dim)' : 'var(--border)'}`,
+                      background: isSel ? 'rgba(201,168,76,0.12)' : willReceive ? 'rgba(201,168,76,0.04)' : undefined,
+                      cursor: 'pointer',
                       transition: 'border-color 0.15s, background 0.15s',
                       minHeight: '80px', display: 'flex', flexDirection: 'column',
                       alignItems: 'center', justifyContent: 'center', gap: '2px',
+                      boxShadow: isSel ? '0 0 10px rgba(201,168,76,0.25)' : 'none',
                     }}
-                    draggable={val !== null}
-                    onDragStart={() => onDragStartStat(i)}
-                    onDragEnd={() => setOverSlot(null)}
-                    onDragOver={e => onDragOver(e, i)}
-                    onDragLeave={() => setOverSlot(null)}
-                    onDrop={() => onDropStat(i)}
                   >
                     <div className="stat-name">{stat}</div>
                     {val !== null ? (
@@ -359,12 +361,25 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
                         <div className="stat-mod">{modStr(val)}</div>
                       </>
                     ) : (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>drop here</div>
+                      <div style={{ fontSize: '0.75rem', color: selected ? 'var(--gold-dim)' : 'var(--text-dim)' }}>
+                        {selected ? 'tap to assign' : 'empty'}
+                      </div>
                     )}
                   </div>
                 )
               })}
             </div>
+
+            {/* Clear all */}
+            {assigned.some(v => v !== null) && (
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ marginTop: '8px' }}
+                onClick={() => { setAssigned([null,null,null,null,null,null]); setStatPool(prev => [...prev, ...assigned.filter(v => v !== null)]); setSelected(null) }}
+              >
+                ↺ Clear All
+              </button>
+            )}
           </>)}
 
           <div className="creator-nav" style={{ marginTop: '24px' }}>

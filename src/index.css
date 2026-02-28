@@ -696,3 +696,82 @@ h1, h2, h3 {
   color: var(--text-dim);
   font-size: 0.8rem;
 }
+
+/* ── Responsive / Mobile ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Topbar */
+  .topbar { padding: 0 12px; gap: 8px; flex-wrap: wrap; min-height: 52px; }
+  .topbar-title { font-size: 1rem; }
+  .topbar-nav { gap: 6px; }
+  .topbar-nav .btn-sm { font-size: 0.7rem; padding: 4px 8px; }
+  .topbar-coins { font-size: 0.8rem; }
+
+  /* Main layout */
+  .main { padding: 8px; }
+
+  /* Campaign: stack sidebar below chat */
+  .campaign-layout { grid-template-columns: 1fr !important; grid-template-rows: 1fr auto; }
+  .campaign-sidebar {
+    width: 100% !important;
+    max-height: 320px;
+    border-left: none !important;
+    border-top: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  .campaign-sidebar-tabs { flex-wrap: wrap; }
+  .campaign-chat { min-height: 40vh; }
+  .campaign-input-row { flex-wrap: wrap; gap: 6px; }
+  .campaign-input-row textarea { font-size: 16px; } /* prevent iOS zoom */
+
+  /* Debug panel — hide on mobile */
+  .campaign-layout.debug-open { grid-template-columns: 1fr !important; }
+  .debug-panel { display: none; }
+
+  /* Character creator */
+  .creator-box { padding: 16px !important; margin: 8px !important; max-width: 100% !important; }
+  .pick-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important; }
+  .bg-grid  { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important; }
+
+  /* Stats step: 3-column grid on mobile */
+  .stats-row { grid-template-columns: repeat(3, 1fr) !important; }
+  .stat-box { min-height: 70px !important; }
+  .stat-value { font-size: 1.2rem !important; }
+
+  /* Sidebar stats grids */
+  .combat-stats { grid-template-columns: 1fr 1fr !important; }
+  .saves-grid { grid-template-columns: 1fr 1fr !important; }
+  .ability-grid { grid-template-columns: 1fr 1fr !important; }
+
+  /* Inventory / quest / NPC cards */
+  .inv-card { padding: 8px 10px; }
+
+  /* Dashboard character cards */
+  .char-grid { grid-template-columns: 1fr !important; }
+
+  /* Upgrade page */
+  .upgrade-grid { grid-template-columns: 1fr !important; }
+  .upgrade-layout { flex-direction: column !important; }
+
+  /* Landing */
+  .landing-title { font-size: 2.2rem; }
+  .landing-tagline { font-size: 1rem; }
+  .steps-row { flex-direction: column; align-items: center; }
+  .step-arrow { transform: rotate(90deg); }
+  .landing-footer { flex-direction: column; gap: 8px; text-align: center; }
+
+  /* Auth */
+  .auth-wrap { padding: 16px; }
+  .auth-box { width: 100% !important; max-width: 100% !important; }
+
+  /* General */
+  .card { padding: 14px; }
+  .btn-lg { padding: 12px 24px; font-size: 0.95rem; }
+}
+
+@media (max-width: 480px) {
+  .landing-title { font-size: 1.8rem; }
+  .landing-ctas { flex-direction: column; width: 100%; }
+  .landing-ctas .btn { width: 100%; }
+  .topbar-title { font-size: 0.9rem; }
+  .stats-row { grid-template-columns: repeat(2, 1fr) !important; }
+}
