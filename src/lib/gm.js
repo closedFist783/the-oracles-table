@@ -94,6 +94,15 @@ Append one tag per character/creature, at the very end of your response (after a
 
 Update an existing NPC's tag if new information is learned — use the exact same name as before.
 
+GROUPS AND ENEMY COUNTS — CRITICAL:
+When you introduce a group of enemies (e.g. "Three Corrupted Undead"), always track them as a single NPC entry with a count in the name. When the group shrinks, update it using "replaces":
+[[NPC:{"name":"Two Corrupted Undead","type":"foe","description":"...","known_info":"...","replaces":"Three Corrupted Undead"}]]
+Then when the last one dies:
+[[NPC:{"name":"Last Corrupted Undead","type":"foe","description":"...","known_info":"Defeated","replaces":"Two Corrupted Undead","remove":true}]]
+NEVER create a new entry for the same group with a different count — always use "replaces" to update the existing one in-place. The goal is one NPC entry per distinct group, updated as the group changes.
+
+REMOVING DEAD NPCs: When a creature or group is completely defeated and no longer present, add "remove":true to its NPC tag. This removes it from the tracker entirely. Only use this when the creature(s) are fully dead and gone, not just wounded.
+
 When THIS SPECIFIC unnamed character says their name or is explicitly identified in this exact scene, add a "replaces" field so the old placeholder entry is renamed rather than duplicated:
 [[NPC:{"name":"Marta Thorne","type":"friend","description":"...","known_info":"...","replaces":"Cloaked Woman at the Inn"}]]
 Only use "replaces" when the revelation is direct and unambiguous in this response (e.g., the cloaked figure says "My name is Marta"). Do NOT use it for background characters who happen to be nearby, or when you are unsure.

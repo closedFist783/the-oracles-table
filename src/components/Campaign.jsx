@@ -220,14 +220,18 @@ function parseGMMessage(text) {
     cleaned = cleaned.replace(rollMatch[0], '')
   }
 
-  // Extract all NPC tags
-  const npcs = []
-  const npcRegex = /\[\[NPC:(\{[^[\]]+\})\]\]/g
+  // Extract all NPC tags — separate into upserts and removes
+  const npcs = [], removeNpcs = []
+  const npcRegex = /\[\[NPC:([\s\S]*?)\]\]/g
   let m
   while ((m = npcRegex.exec(cleaned)) !== null) {
-    try { npcs.push(JSON.parse(m[1])) } catch {}
+    try {
+      const npc = JSON.parse(m[1])
+      if (npc.remove) removeNpcs.push(npc)
+      else npcs.push(npc)
+    } catch {}
   }
-  cleaned = cleaned.replace(/\[\[NPC:\{[^[\]]+\}\]\]/g, '')
+  cleaned = cleaned.replace(/\[\[NPC:[\s\S]*?\]\]/g, '')
 
   // Extract new quests
   const newQuests = []
@@ -294,7 +298,7 @@ function parseGMMessage(text) {
   // Strip any incomplete [[TAG... fragments (truncated by token limit)
   cleaned = cleaned.replace(/\[\[[A-Z_]+:[^[\]]*$/g, '').trim()
 
-  return { text: cleaned, roll, npcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems }
+  return { text: cleaned, roll, npcs, removeNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems }
 }
 
 // ── Markdown renderer (subset: headings, bold, italic, hr, paragraphs) ────────
@@ -617,6 +621,21 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     setNpcs(data || [])
   }
 
+  async function deleteNpcs(npcList) {
+    if (!npcList?.length) return
+    for (const npc of npcList) {
+      // Delete by name OR by the name it replaced (handles remove:true on updated entries)
+      const names = [npc.name, npc.replaces].filter(Boolean)
+      for (const name of names) {
+        await supabase.from('campaign_npcs')
+          .delete().eq('campaign_id', campaign.id).ilike('name', name)
+      }
+    }
+    const { data } = await supabase.from('campaign_npcs').select('*')
+      .eq('campaign_id', campaign.id).order('first_seen')
+    setNpcs(data || [])
+  }
+
   async function upsertQuests(newQuests, completedQuests) {
     if (!newQuests?.length && !completedQuests?.length) return
 
@@ -752,12 +771,13 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     }
     try {
       const gmRaw = await sendToGM([], character, { tier: profile?.subscription_tier, persona: gmPersona })
-      const { roll, npcs: newNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems } = parseGMMessage(gmRaw)
+      const { roll, npcs: newNpcs, removeNpcs: deadNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems } = parseGMMessage(gmRaw)
       const msg = { campaign_id: campaign.id, role: 'assistant', content: gmRaw }
       await supabase.from('campaign_messages').insert(msg)
       setMessages([{ ...msg, id: Date.now(), created_at: new Date().toISOString() }])
       if (roll) setPendingRoll(roll)
       upsertNpcs(newNpcs).catch(e => dbLog('upsertNpcs', e))
+      deleteNpcs(deadNpcs).catch(e => dbLog('deleteNpcs', e))
       upsertQuests(newQuests, completedQuests).catch(e => dbLog('upsertQuests', e))
       if (xpAward)   awardXP(xpAward).catch(e => dbLog('awardXP', e))
       if (hpUpdate)  applyHP(hpUpdate).catch(e => dbLog('applyHP', e))
@@ -818,7 +838,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'user', content: userText })
 
       const gmRaw  = await sendToGM(nextMsgs, character, { tier: profile?.subscription_tier, persona: gmPersona })
-      const { roll, npcs: newNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems } = parseGMMessage(gmRaw)
+      const { roll, npcs: newNpcs, removeNpcs: deadNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems } = parseGMMessage(gmRaw)
 
       await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'assistant', content: gmRaw })
       await supabase.from('campaigns').update({ last_played_at: new Date().toISOString() }).eq('id', campaign.id)
@@ -830,6 +850,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       ])
       if (roll) setPendingRoll(roll)
       upsertNpcs(newNpcs).catch(e => dbLog('upsertNpcs', e))
+      deleteNpcs(deadNpcs).catch(e => dbLog('deleteNpcs', e))
       upsertQuests(newQuests, completedQuests).catch(e => dbLog('upsertQuests', e))
       if (xpAward)   awardXP(xpAward).catch(e => dbLog('awardXP', e))
       if (hpUpdate)  applyHP(hpUpdate).catch(e => dbLog('applyHP', e))
