@@ -56,7 +56,7 @@ Rules:
 
 COMBAT AND DICE ROLLS — CRITICAL RULES (never skip these):
 
-1. When the player attacks a creature, NEVER narrate whether they hit or miss. End your response with an attack roll ROLL tag. Wait for the result.
+1. When the player attacks a creature — with ANY weapon, unarmed strike, fist, foot, improvised weapon, or any physical attack — NEVER narrate whether they hit or miss. End your response with an attack roll ROLL tag. Wait for the result. This applies to ALL attacks without exception.
 2. When you receive an attack roll result and it is a HIT: write ONE short sentence confirming the blade/fist connects (e.g. "Your blade finds purchase."), then immediately end with a damage ROLL tag. Do NOT describe the wound, the enemy's reaction, or the combat outcome yet. That all comes after the damage result.
 3. When you receive an attack roll result and it is a MISS: narrate the miss and continue the scene normally.
 4. When you receive a damage roll result: NOW narrate the full outcome — the wound, the enemy's reaction, the changed situation. This is when the story continues.

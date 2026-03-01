@@ -211,15 +211,19 @@ function modStr(n) { return n >= 0 ? `+${n}` : `${n}` }
 // Parse [[ROLL:{...}]], [[NPC:{...}]], [[QUEST:{...}]], [[QUEST_COMPLETE:{...}]] tags
 function parseGMMessage(text) {
   let cleaned = text
-  // If a ROLL tag is present, strip any trailing question sentence/phrase
-  // so the player isn't asked to make a decision AND roll at the same time
+  // If a ROLL tag is present, strip any questions so the player isn't asked
+  // to make a decision AND roll at the same time
   if (/\[\[ROLL:/.test(cleaned)) {
-    // Remove lines that are just a question (end with ?)
-    cleaned = cleaned.replace(/\n[^\n]*\?[\s]*$/m, '')
+    // Remove "What is your X roll?" / "Make a X roll." type prompts anywhere in text
+    cleaned = cleaned.replace(/\n?[^\n]*\broll\b[^\n]*\?[\s]*/gi, '\n')
+    // Remove trailing question lines
+    cleaned = cleaned.replace(/\n[^\n]{3,100}\?[\s]*$/m, '')
     // Remove bold questions like **What do you do?**
-    cleaned = cleaned.replace(/\*{0,2}[A-Z][^*\n]{0,80}\?\*{0,2}[\s]*$/m, '')
-    // Final trim
-    cleaned = cleaned.trimEnd()
+    cleaned = cleaned.replace(/\*{0,2}[A-Z][^*\n]{0,80}\?\*{0,2}[\s]*/gm, '')
+    // Remove "Make a check." / "Make a saving throw." prompts
+    cleaned = cleaned.replace(/\nMake a [^\n]+\.\s*/gi, '\n')
+    // Collapse extra blank lines
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trimEnd()
   }
 
   // Extract roll tag
