@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { sendToGM, GM_PERSONAS } from '../lib/gm'
-import { xpToLevel, xpForNextLevel, xpProgress, HIT_DICE, getFeaturesForLevel, getAllFeaturesUpToLevel } from '../lib/classes'
+import { xpToLevel, xpForNextLevel, xpProgress, HIT_DICE, getFeaturesForLevel, getAllFeaturesUpToLevel, profBonus } from '../lib/classes'
 import LevelUp from './LevelUp'
 
 const STAT_NAMES = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
