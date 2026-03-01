@@ -211,6 +211,16 @@ function modStr(n) { return n >= 0 ? `+${n}` : `${n}` }
 // Parse [[ROLL:{...}]], [[NPC:{...}]], [[QUEST:{...}]], [[QUEST_COMPLETE:{...}]] tags
 function parseGMMessage(text) {
   let cleaned = text
+  // If a ROLL tag is present, strip any trailing question sentence/phrase
+  // so the player isn't asked to make a decision AND roll at the same time
+  if (/\[\[ROLL:/.test(cleaned)) {
+    // Remove lines that are just a question (end with ?)
+    cleaned = cleaned.replace(/\n[^\n]*\?[\s]*$/m, '')
+    // Remove bold questions like **What do you do?**
+    cleaned = cleaned.replace(/\*{0,2}[A-Z][^*\n]{0,80}\?\*{0,2}[\s]*$/m, '')
+    // Final trim
+    cleaned = cleaned.trimEnd()
+  }
 
   // Extract roll tag
   let roll = null
