@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { sendToGM, GM_PERSONAS } from '../lib/gm'
+import { xpToLevel, xpForNextLevel, xpProgress, HIT_DICE, getFeaturesForLevel, getAllFeaturesUpToLevel } from '../lib/classes'
+import LevelUp from './LevelUp'
 
 const STAT_NAMES = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
 const STAT_KEYS  = ['str_stat', 'dex_stat', 'con_stat', 'int_stat', 'wis_stat', 'cha_stat']
@@ -161,8 +163,6 @@ const STARTING_GEAR = {
   ],
 }
 
-function profBonus(level) { return Math.floor((level - 1) / 4) + 2 }
-
 function calcAC(character, inventory) {
   const dexMod = mod(character.dex_stat ?? 10)
   if (character.ac_override != null) return character.ac_override
@@ -187,21 +187,6 @@ function calcAC(character, inventory) {
 const DEV_USER_ID = '0b5648d4-110b-4edf-8728-e7bd0868255d'
 
 // Standard D&D 5e XP thresholds — index = level - 1
-const XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
-
-function xpToLevel(xp) {
-  for (let i = XP_TABLE.length - 1; i >= 0; i--) {
-    if (xp >= XP_TABLE[i]) return i + 1
-  }
-  return 1
-}
-
-function xpProgress(xp, level) {
-  if (level >= 20) return { current: xp, needed: XP_TABLE[19], pct: 100 }
-  const floor = XP_TABLE[level - 1]
-  const ceil  = XP_TABLE[level]
-  return { current: xp - floor, needed: ceil - floor, pct: Math.min(100, ((xp - floor) / (ceil - floor)) * 100) }
-}
 
 function fmtXP(n) { return n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n) }
 
@@ -529,6 +514,9 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
   const [debugMode, setDebugMode]     = useState(false)
   const [debugLog, setDebugLog]       = useState([])
   const [gmPersona, setGmPersona]     = useState('classic')
+  const [pendingLevelUp, setPendingLevelUp] = useState(false)
+  const [showLevelUp, setShowLevelUp]       = useState(false)
+  const [inventoryTab, setInventoryTab]     = useState('items') // 'items' | 'abilities'
   const bottomRef = useRef(null)
   const isDevUser = session.user.id === DEV_USER_ID
 
@@ -682,6 +670,53 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     setCharacter(c => ({ ...c, xp: newXp, level: newLevel }))
     setXpGain({ amount: xpAward.amount, reason: xpAward.reason, leveledUp, newLevel })
     setTimeout(() => setXpGain(null), 5000)
+    if (leveledUp) setPendingLevelUp(true)
+  }
+
+  async function applyLevelUp({ newLevel, hpGain, newFeatures, asi, subclass, fightingStyle }) {
+    // HP increase
+    const newMaxHp   = (character.max_hp || 0) + hpGain
+    const newCurrHp  = (character.current_hp || 0) + hpGain
+    const updates    = { max_hp: newMaxHp, current_hp: newCurrHp }
+
+    // ASI
+    let updatedChar = { ...character, max_hp: newMaxHp, current_hp: newCurrHp }
+    if (asi?.stat1 !== null && asi?.stat1 !== undefined) {
+      const key1 = ['str_stat','dex_stat','con_stat','int_stat','wis_stat','cha_stat'][asi.stat1]
+      updates[key1] = Math.min(20, (character[key1] ?? 10) + (asi.mode === 'double' ? 2 : 1))
+      updatedChar[key1] = updates[key1]
+    }
+    if (asi?.mode === 'split' && asi.stat2 !== null && asi.stat2 !== undefined) {
+      const key2 = ['str_stat','dex_stat','con_stat','int_stat','wis_stat','cha_stat'][asi.stat2]
+      updates[key2] = Math.min(20, (character[key2] ?? 10) + 1)
+      updatedChar[key2] = updates[key2]
+    }
+
+    await supabase.from('characters').update(updates).eq('id', character.id)
+    setCharacter(c => ({ ...c, ...updatedChar }))
+
+    // Add new features as 'ability' inventory items
+    const featuresToAdd = [...newFeatures]
+    if (subclass)      featuresToAdd.push({ name: subclass, desc: 'Your chosen subclass path.', buff: 'Subclass chosen' })
+    if (fightingStyle) featuresToAdd.push({ name: fightingStyle, desc: 'Your chosen fighting style.', buff: fightingStyle })
+
+    for (const f of featuresToAdd) {
+      const exists = inventory.find(i => i.name?.toLowerCase() === f.name?.toLowerCase())
+      if (!exists) {
+        await supabase.from('inventory').insert({
+          campaign_id: campaign.id, character_id: character.id,
+          name: f.name, item_type: 'ability',
+          description: f.desc || f.description || '',
+          buff: f.buff || '', quantity: 1, equipped: true,
+        })
+      }
+    }
+
+    // Refresh inventory
+    const { data } = await supabase.from('inventory').select('*').eq('campaign_id', campaign.id).order('created_at')
+    setInventory(data || [])
+    setPendingLevelUp(false)
+    setShowLevelUp(false)
   }
 
   async function applyHP(hpUpdate) {
@@ -901,9 +936,10 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
 
   if (!loaded) return <div className="empty-state">Loading adventure...</div>
 
-  const canSend = input.trim() && !typing && coins >= 1 && !pendingRoll
+  const canSend = input.trim() && !typing && coins >= 1 && !pendingRoll && !pendingLevelUp
 
   return (
+    <>
     <div>
       {/* XP gain toast */}
       {xpGain && (
@@ -1055,45 +1091,77 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
 
           {/* ── Inventory Tab ───────────────────────────────────────── */}
           {sideTab === 'inventory' && (<>
-            {inventory.length === 0
-              ? <p className="empty-state" style={{ padding: '24px 0', fontSize: '0.82rem' }}>Your pack is empty.</p>
-              : ['weapon','armor','spell','item','other'].map(type => {
-                  const group = inventory.filter(i => i.item_type === type)
-                  if (!group.length) return null
-                  const labels = { weapon:'⚔️ Weapons', armor:'🛡️ Armor', spell:'📖 Spells', item:'🎒 Items', other:'📦 Other' }
-                  const sk = `inv-${type}`
-                  const isCollapsed = collapsedSections.has(sk)
-                  return (
-                    <div key={type} className="inv-type-section">
-                      <div className="inv-type-header clickable" onClick={() => toggleSection(sk)}>
-                        <span>{labels[type]}</span>
-                        <span className={`section-chevron${isCollapsed ? '' : ' open'}`}>▸</span>
-                      </div>
-                      {!isCollapsed && group.map(item => {
-                        const expanded = expandedItems.has(item.id)
-                        return (
-                          <div key={item.id} className="inv-card expandable" onClick={() => toggleItem(item.id)}>
-                            <div className="inv-card-header">
-                              <span className="inv-card-name">{item.name}</span>
-                              <span className="inv-card-qty">
-                                {item.equipped && <span className="inv-card-equipped">EQ</span>}
-                                {item.quantity > 1 && <span style={{ marginLeft: '3px' }}>×{item.quantity}</span>}
-                                <span className={`expand-arrow${expanded ? ' open' : ''}`}>›</span>
-                              </span>
-                            </div>
-                            {expanded && (
-                              <div className="inv-card-details">
-                                {item.description && <div className="inv-card-desc">{item.description}</div>}
-                                {item.buff && <div className="inv-card-buff">{item.buff}</div>}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
+            {/* Items / Abilities sub-tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '10px' }}>
+              {[['items','🎒 Items'],['abilities','⚡ Abilities']].map(([t,label]) => (
+                <button key={t} onClick={() => setInventoryTab(t)}
+                  style={{ flex:1, background:'none', border:'none', padding:'8px 4px',
+                    fontSize:'0.75rem', cursor:'pointer', color: inventoryTab===t ? 'var(--gold)' : 'var(--text-dim)',
+                    borderBottom: inventoryTab===t ? '2px solid var(--gold)' : '2px solid transparent',
+                    fontWeight: inventoryTab===t ? 'bold' : 'normal', transition:'all 0.15s' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {inventoryTab === 'items' && (() => {
+              const items = inventory.filter(i => !['ability','feature'].includes(i.item_type))
+              if (!items.length) return <p className="empty-state" style={{ padding:'16px 0', fontSize:'0.82rem' }}>Your pack is empty.</p>
+              return ['weapon','armor','spell','item','other'].map(type => {
+                const group = items.filter(i => i.item_type === type)
+                if (!group.length) return null
+                const labels = { weapon:'⚔️ Weapons', armor:'🛡️ Armor', spell:'📖 Spells', item:'🎒 Items', other:'📦 Other' }
+                const sk = `inv-${type}`
+                const isCollapsed = collapsedSections.has(sk)
+                return (
+                  <div key={type} className="inv-type-section">
+                    <div className="inv-type-header clickable" onClick={() => toggleSection(sk)}>
+                      <span>{labels[type]}</span>
+                      <span className={`section-chevron${isCollapsed ? '' : ' open'}`}>▸</span>
                     </div>
-                  )
-                })
-            }
+                    {!isCollapsed && group.map(item => {
+                      const expanded = expandedItems.has(item.id)
+                      return (
+                        <div key={item.id} className="inv-card expandable" onClick={() => toggleItem(item.id)}>
+                          <div className="inv-card-header">
+                            <span className="inv-card-name">{item.name}</span>
+                            <span className="inv-card-qty">
+                              {item.equipped && <span className="inv-card-equipped">EQ</span>}
+                              {item.quantity > 1 && <span style={{ marginLeft:'3px' }}>×{item.quantity}</span>}
+                              <span className={`expand-arrow${expanded ? ' open' : ''}`}>›</span>
+                            </span>
+                          </div>
+                          {expanded && <div className="inv-card-details">
+                            {item.description && <div className="inv-card-desc">{item.description}</div>}
+                            {item.buff && <div className="inv-card-buff">{item.buff}</div>}
+                          </div>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })
+            })()}
+
+            {inventoryTab === 'abilities' && (() => {
+              const abilities = inventory.filter(i => ['ability','feature'].includes(i.item_type))
+              if (!abilities.length) return <p className="empty-state" style={{ padding:'16px 0', fontSize:'0.82rem' }}>No abilities yet. Level up to gain class features.</p>
+              return abilities.map(item => {
+                const expanded = expandedItems.has(item.id)
+                return (
+                  <div key={item.id} className="inv-card expandable" onClick={() => toggleItem(item.id)}>
+                    <div className="inv-card-header">
+                      <span className="inv-card-name" style={{ color:'var(--gold)' }}>{item.name}</span>
+                      <span className={`expand-arrow${expanded ? ' open' : ''}`}>›</span>
+                    </div>
+                    {expanded && <div className="inv-card-details">
+                      {item.description && <div className="inv-card-desc">{item.description}</div>}
+                      {item.buff && <div className="inv-card-buff">{item.buff}</div>}
+                    </div>}
+                  </div>
+                )
+              })
+            })()}
           </>)}
 
           {/* ── Quests Tab ──────────────────────────────────────────── */}
@@ -1283,14 +1351,19 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  pendingRoll       ? 'Roll the dice above before continuing…'
-                  : coins < 1 ? 'No coins remaining — visit Upgrade to continue.'
+                  pendingLevelUp    ? '⬆ Level up before continuing your adventure!'
+                  : pendingRoll     ? 'Roll the dice above before continuing…'
+                  : coins < 1      ? 'No coins remaining — visit Upgrade to continue.'
                   : 'What do you do? (Enter to send, Shift+Enter for newline)'
                 }
-                disabled={typing || coins < 1 || !!pendingRoll}
+                disabled={typing || coins < 1 || !!pendingRoll || pendingLevelUp}
+                style={pendingLevelUp ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               />
               <div className="send-col">
-                <button className="btn btn-gold btn-sm" onClick={send} disabled={!canSend}>Send</button>
+                {pendingLevelUp
+                  ? <button className="btn btn-gold btn-sm" onClick={() => setShowLevelUp(true)} style={{ animation: 'pulse 1.5s infinite', whiteSpace:'nowrap' }}>⬆ Level Up!</button>
+                  : <button className="btn btn-gold btn-sm" onClick={send} disabled={!canSend}>Send</button>
+                }
                 <span className="coins-cost">🪙 1 coin</span>
               </div>
             </div>
@@ -1375,5 +1448,15 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
         )}
       </div>
     </div>
+
+    {/* Level-up overlay */}
+    {showLevelUp && character && (
+      <LevelUp
+        character={character}
+        newLevel={character.level}
+        onComplete={applyLevelUp}
+      />
+    )}
+  </>
   )
 }
