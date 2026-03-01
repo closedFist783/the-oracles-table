@@ -1105,7 +1105,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
             </div>
 
             {inventoryTab === 'items' && (() => {
-              const items = inventory.filter(i => !['ability','feature'].includes(i.item_type))
+              const items = inventory.filter(i => !['ability','feature','spell'].includes(i.item_type))
               if (!items.length) return <p className="empty-state" style={{ padding:'16px 0', fontSize:'0.82rem' }}>Your pack is empty.</p>
               return ['weapon','armor','spell','item','other'].map(type => {
                 const group = items.filter(i => i.item_type === type)
@@ -1144,7 +1144,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
             })()}
 
             {inventoryTab === 'abilities' && (() => {
-              const abilities = inventory.filter(i => ['ability','feature'].includes(i.item_type))
+              const abilities = inventory.filter(i => ['ability','feature','spell'].includes(i.item_type))
               if (!abilities.length) return <p className="empty-state" style={{ padding:'16px 0', fontSize:'0.82rem' }}>No abilities yet. Level up to gain class features.</p>
               return abilities.map(item => {
                 const expanded = expandedItems.has(item.id)
