@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { randomName } from '../lib/names'
+import Anthropic from '@anthropic-ai/sdk'
 
 const RACES = [
   { name: 'Human',      desc: 'Versatile and ambitious' },
@@ -84,6 +86,32 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
   const [backstory, setBackstory] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Backstory generator
+  const [showBsGen, setShowBsGen]   = useState(false)
+  const [bsKeywords, setBsKeywords] = useState('')
+  const [genningBs, setGenningBs]   = useState(false)
+
+  async function generateBackstory() {
+    setGenningBs(true)
+    try {
+      const ai = new Anthropic({ apiKey: import.meta.env.VITE_ANTHROPIC_KEY, dangerouslyAllowBrowser: true })
+      const seed = bsKeywords.trim()
+      const prompt = seed
+        ? `Write a short (3-4 sentence) D&D backstory for a level 1 ${race} ${cls} with the background of "${background}". Incorporate these elements: ${seed}. Write in second person ("You were born..."). Be evocative but concise.`
+        : `Write a short (3-4 sentence) D&D backstory for a level 1 ${race} ${cls} with the background of "${background}". Write in second person ("You were born..."). Be evocative but concise.`
+      const msg = await ai.messages.create({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      setBackstory(msg.content[0].text.trim())
+      setShowBsGen(false)
+      setBsKeywords('')
+    } catch (e) {
+      setError('Could not generate backstory.')
+    }
+    setGenningBs(false)
+  }
 
   // Stat pools
   const [statPool, setStatPool] = useState([]) // unassigned scores
@@ -394,11 +422,46 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
           {error && <div className="auth-error" style={{ marginBottom: '12px' }}>{error}</div>}
           <div className="form-group">
             <label className="form-label">Character Name</label>
-            <input className="form-input" value={name} onChange={e => setName(e.target.value)}
-              placeholder={`Your ${race} ${cls}...`} autoFocus />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input className="form-input" style={{ flex: 1 }} value={name} onChange={e => setName(e.target.value)}
+                placeholder={`Your ${race} ${cls}...`} autoFocus />
+              <button className="btn btn-ghost btn-sm" type="button" title="Random name"
+                onClick={() => setName(randomName())} style={{ whiteSpace: 'nowrap' }}>
+                🎲 Random
+              </button>
+            </div>
           </div>
           <div className="form-group">
-            <label className="form-label">Backstory <span style={{ color: 'var(--text-dim)' }}>(optional)</span></label>
+            <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Backstory <span style={{ color: 'var(--text-dim)' }}>(optional)</span></span>
+              <button className="btn btn-ghost btn-sm" type="button"
+                onClick={() => setShowBsGen(v => !v)} style={{ fontSize: '0.75rem' }}>
+                ✨ Generate
+              </button>
+            </label>
+            {showBsGen && (
+              <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px', marginBottom: '8px' }}>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '8px' }}>
+                  Add keywords or a short description — or leave blank for a random backstory.
+                </p>
+                <textarea
+                  className="form-textarea"
+                  rows={2}
+                  value={bsKeywords}
+                  onChange={e => setBsKeywords(e.target.value)}
+                  placeholder="e.g. grew up in the mountains, lost family to bandits, seeks revenge..."
+                  style={{ marginBottom: '8px', fontSize: '0.82rem' }}
+                />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn btn-gold btn-sm" type="button" disabled={genningBs} onClick={generateBackstory}>
+                    {genningBs ? '✨ Writing...' : '✨ Generate'}
+                  </button>
+                  <button className="btn btn-ghost btn-sm" type="button" onClick={() => { setShowBsGen(false); setBsKeywords('') }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
             <textarea className="form-textarea" value={backstory} onChange={e => setBackstory(e.target.value)}
               placeholder="Where do you come from? What drives you? The GM will weave this into your adventure..." rows={4} />
           </div>
