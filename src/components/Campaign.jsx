@@ -358,7 +358,7 @@ function rollDice(diceStr) {
   return Array.from({ length: n }, () => Math.floor(Math.random() * x) + 1)
 }
 
-function RollCard({ roll, character, onRolled }) {
+function RollCard({ roll, character, onRolled, riggedRoll }) {
   const [rolling, setRolling] = useState(false)
   const [result, setResult]   = useState(null)
   const [display, setDisplay] = useState(null)
@@ -379,8 +379,17 @@ function RollCard({ roll, character, onRolled }) {
       ticks++
       if (ticks > 14) {
         clearInterval(interval)
-        const rolls = rollDice(dice)
-        const sum   = rolls.reduce((a, b) => a + b, 0)
+        let rolls, sum
+        if (riggedRoll !== null && riggedRoll !== undefined) {
+          // Rig: distribute the total across dice as evenly as possible
+          const n = parseInt((dice.match(/^(\d+)d/) ?? [])[1] ?? '1')
+          const base = Math.floor(riggedRoll / n)
+          rolls = Array.from({ length: n }, (_, i) => i === 0 ? riggedRoll - base * (n - 1) : base)
+          sum = riggedRoll
+        } else {
+          rolls = rollDice(dice)
+          sum   = rolls.reduce((a, b) => a + b, 0)
+        }
         const total = sum + bonus
         setDisplay(null)
         setResult({ rolls, sum, bonus, total })
@@ -494,6 +503,156 @@ const RACIAL_FEATURES = {
   ],
 }
 
+// ── DevTools (dev user only) ──────────────────────────────────────────────────
+const STAT_KEYS_DEV = ['str_stat','dex_stat','con_stat','int_stat','wis_stat','cha_stat']
+const STAT_LABELS_DEV = ['STR','DEX','CON','INT','WIS','CHA']
+
+function DevTools({ character, riggedRoll, setRiggedRoll, devXpInput, setDevXpInput,
+  devStatEdit, setDevStatEdit, onAddXp, onSetStat, onSetProfBonus, onSetMaxHp }) {
+  const [statVals, setStatVals] = useState(STAT_KEYS_DEV.reduce((a,k) => ({ ...a, [k]: character[k] ?? 10 }), {}))
+  const [profVal, setProfVal]   = useState(character.prof_bonus_override ?? profBonus(character.level ?? 1))
+  const [maxHpVal, setMaxHpVal] = useState(character.max_hp ?? 1)
+  const [saved, setSaved]       = useState(false)
+
+  function flash() { setSaved(true); setTimeout(() => setSaved(false), 1200) }
+
+  return (
+    <div style={{
+      background: '#0d0d1a', border: '2px solid #3a2a6a', borderRadius: '10px',
+      padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px',
+      fontFamily: 'monospace', fontSize: '0.78rem',
+    }}>
+      <div style={{ color: '#9966ff', fontWeight: 'bold', fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+        🛠 Dev Tools
+      </div>
+
+      {/* XP injection */}
+      <div>
+        <div style={{ color: '#7a7aaa', marginBottom: '6px' }}>Add XP</div>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {[100,300,900,2700].map(amt => (
+            <button key={amt} onClick={() => onAddXp(amt)}
+              style={{ padding: '4px 10px', fontSize: '0.72rem', borderRadius: '5px', cursor: 'pointer',
+                background: '#1a1a3a', border: '1px solid #3a3a6a', color: '#c0c0ff' }}>
+              +{amt} XP
+            </button>
+          ))}
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+            <input value={devXpInput} onChange={e => setDevXpInput(e.target.value)}
+              placeholder="custom" type="number"
+              style={{ width: '70px', padding: '4px 6px', borderRadius: '5px', fontSize: '0.72rem',
+                background: '#111', border: '1px solid #3a3a6a', color: '#e0d8c8' }} />
+            <button onClick={() => { const n = parseInt(devXpInput); if (!isNaN(n)) { onAddXp(n); setDevXpInput('') } }}
+              style={{ padding: '4px 10px', fontSize: '0.72rem', borderRadius: '5px', cursor: 'pointer',
+                background: '#2a1a4a', border: '1px solid #6a3aaa', color: '#c0a0ff' }}>
+              Add
+            </button>
+          </div>
+        </div>
+        <div style={{ color: '#5a5a8a', marginTop: '4px' }}>
+          Current: {character.xp ?? 0} XP · Level {character.level ?? 1}
+        </div>
+      </div>
+
+      {/* Ability scores */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <span style={{ color: '#7a7aaa' }}>Ability Scores</span>
+          <button onClick={() => setDevStatEdit(v => !v)}
+            style={{ padding: '2px 8px', fontSize: '0.68rem', borderRadius: '4px', cursor: 'pointer',
+              background: devStatEdit ? '#2a3a1a' : '#1a1a3a', border: `1px solid ${devStatEdit ? '#4a7a2a' : '#3a3a6a'}`, color: devStatEdit ? '#80c040' : '#8080aa' }}>
+            {devStatEdit ? '✓ editing' : 'edit'}
+          </button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '6px' }}>
+          {STAT_KEYS_DEV.map((k, i) => (
+            <div key={k} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.65rem', color: '#5a5a8a' }}>{STAT_LABELS_DEV[i]}</div>
+              {devStatEdit
+                ? <input type="number" value={statVals[k]} min={1} max={30}
+                    onChange={e => setStatVals(v => ({ ...v, [k]: parseInt(e.target.value) || 10 }))}
+                    style={{ width: '38px', padding: '3px 2px', textAlign: 'center', borderRadius: '4px', fontSize: '0.78rem',
+                      background: '#111', border: '1px solid #4a3a7a', color: '#e0d8c8' }} />
+                : <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#c0a0ff' }}>{character[k] ?? 10}</div>
+              }
+            </div>
+          ))}
+        </div>
+        {devStatEdit && (
+          <button onClick={async () => {
+            for (const k of STAT_KEYS_DEV) await onSetStat(k, statVals[k])
+            flash()
+          }} style={{ marginTop: '8px', width: '100%', padding: '5px', fontSize: '0.72rem', borderRadius: '5px',
+            cursor: 'pointer', background: '#1a3a1a', border: '1px solid #4a8a2a', color: '#80d040' }}>
+            {saved ? '✓ Saved!' : 'Save Stats'}
+          </button>
+        )}
+      </div>
+
+      {/* Prof bonus + Max HP */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <div>
+          <div style={{ color: '#7a7aaa', marginBottom: '4px' }}>Prof Bonus</div>
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+            <input type="number" value={profVal} min={2} max={6}
+              onChange={e => setProfVal(parseInt(e.target.value) || 2)}
+              style={{ width: '44px', padding: '4px', textAlign: 'center', borderRadius: '4px', fontSize: '0.82rem',
+                background: '#111', border: '1px solid #3a3a6a', color: '#e0d8c8' }} />
+            <button onClick={async () => { await onSetProfBonus(profVal); flash() }}
+              style={{ padding: '4px 8px', fontSize: '0.68rem', borderRadius: '4px', cursor: 'pointer',
+                background: '#1a1a3a', border: '1px solid #4a3a7a', color: '#c0a0ff' }}>Set</button>
+          </div>
+        </div>
+        <div>
+          <div style={{ color: '#7a7aaa', marginBottom: '4px' }}>Max HP</div>
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+            <input type="number" value={maxHpVal} min={1}
+              onChange={e => setMaxHpVal(parseInt(e.target.value) || 1)}
+              style={{ width: '52px', padding: '4px', textAlign: 'center', borderRadius: '4px', fontSize: '0.82rem',
+                background: '#111', border: '1px solid #3a3a6a', color: '#e0d8c8' }} />
+            <button onClick={async () => { await onSetMaxHp(maxHpVal); flash() }}
+              style={{ padding: '4px 8px', fontSize: '0.68rem', borderRadius: '4px', cursor: 'pointer',
+                background: '#1a1a3a', border: '1px solid #4a3a7a', color: '#c0a0ff' }}>Set</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Rigged roll */}
+      <div>
+        <div style={{ color: '#7a7aaa', marginBottom: '6px' }}>Rig Next Roll <span style={{ color: '#4a4a6a' }}>(sets the dice total before modifier)</span></div>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {[1,10,15,20].map(n => (
+            <button key={n} onClick={() => setRiggedRoll(riggedRoll === n ? null : n)}
+              style={{ padding: '4px 10px', fontSize: '0.72rem', borderRadius: '5px', cursor: 'pointer',
+                background: riggedRoll === n ? '#3a1a1a' : '#1a1a3a',
+                border: `1px solid ${riggedRoll === n ? '#aa3a3a' : '#3a3a6a'}`,
+                color: riggedRoll === n ? '#ff8080' : '#c0c0ff' }}>
+              {n === 1 ? '💀 1' : n === 20 ? '⭐ 20' : n}
+            </button>
+          ))}
+          <input type="number" placeholder="custom" min={1}
+            onChange={e => setRiggedRoll(parseInt(e.target.value) || null)}
+            value={riggedRoll ?? ''}
+            style={{ width: '60px', padding: '4px 6px', borderRadius: '5px', fontSize: '0.72rem',
+              background: '#111', border: `1px solid ${riggedRoll ? '#aa5a00' : '#3a3a6a'}`, color: '#e0d8c8' }} />
+          {riggedRoll !== null && (
+            <button onClick={() => setRiggedRoll(null)}
+              style={{ padding: '4px 8px', fontSize: '0.68rem', borderRadius: '4px', cursor: 'pointer',
+                background: '#1a1a1a', border: '1px solid #5a3a3a', color: '#aa6060' }}>
+              Clear
+            </button>
+          )}
+        </div>
+        {riggedRoll !== null && (
+          <div style={{ color: '#ff9933', fontSize: '0.7rem', marginTop: '4px' }}>
+            🎯 Next roll will show {riggedRoll} (before modifiers)
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Campaign ──────────────────────────────────────────────────────────────────
 export default function Campaign({ session, profile, campaign, onCoinsChanged, onBack }) {
   const [character, setCharacter]     = useState(null)
@@ -512,6 +671,9 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
   const [xpGain, setXpGain]           = useState(null) // { amount, reason, leveledUp, newLevel }
   const [error, setError]             = useState('')
   const [debugMode, setDebugMode]     = useState(false)
+  const [riggedRoll, setRiggedRoll]   = useState(null) // number or null
+  const [devXpInput, setDevXpInput]   = useState('')
+  const [devStatEdit, setDevStatEdit] = useState(false)
   const [debugLog, setDebugLog]       = useState([])
   const [gmPersona, setGmPersona]     = useState('classic')
   const [pendingLevelUp, setPendingLevelUp] = useState(false)
@@ -962,14 +1124,16 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
         <button className="btn btn-ghost btn-sm" onClick={onBack}>← Back</button>
         <h2 style={{ margin: 0, textShadow: '0 0 16px var(--gold-glow)', flex: 1 }}>{campaign.title}</h2>
-        <button
-          className={`btn btn-sm ${debugMode ? 'btn-danger' : 'btn-ghost'}`}
-          style={{ fontFamily: 'monospace', fontSize: '0.72rem', opacity: debugMode ? 1 : 0.5 }}
-          onClick={() => setDebugMode(d => !d)}
-          title="Toggle raw AI output debug panel"
-        >
-          {debugMode ? '🐛 Debug ON' : '🐛'}
-        </button>
+        {isDevUser && (
+          <button
+            className={`btn btn-sm ${debugMode ? 'btn-danger' : 'btn-ghost'}`}
+            style={{ fontFamily: 'monospace', fontSize: '0.72rem', opacity: debugMode ? 1 : 0.5 }}
+            onClick={() => setDebugMode(d => !d)}
+            title="Toggle dev tools panel"
+          >
+            {debugMode ? '🐛 ON' : '🐛'}
+          </button>
+        )}
       </div>
 
       <div className="campaign-layout" style={debugMode ? { gridTemplateColumns: '250px 1fr 300px' } : {}}>
@@ -1021,7 +1185,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
               {[
                 { label: '🛡️ AC',   val: calcAC(character, inventory) },
                 { label: '⚡ Init',  val: modStr(mod(character.dex_stat ?? 10)) },
-                { label: '📖 Prof', val: `+${profBonus(character.level ?? 1)}` },
+                { label: '📖 Prof', val: `+${character.prof_bonus_override ?? profBonus(character.level ?? 1)}` },
               ].map(({ label, val }) => (
                 <div key={label} className="combat-stat-box">
                   <div className="combat-stat-label">{label}</div>
@@ -1331,7 +1495,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
 
             {/* Pending roll card */}
             {pendingRoll && !typing && (
-              <RollCard roll={pendingRoll} character={character} onRolled={handleRollResult} />
+              <RollCard roll={pendingRoll} character={character} onRolled={handleRollResult} riggedRoll={riggedRoll} />
             )}
 
             {typing && (
@@ -1370,7 +1534,44 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
           )}
         </div>
 
-        {/* ── Debug Panel ─────────────────────────────────────────── */}
+        {/* ── Dev Tools Panel (dev user only) ─────────────────────── */}
+        {debugMode && isDevUser && character && (
+          <DevTools
+            character={character}
+            riggedRoll={riggedRoll}
+            setRiggedRoll={setRiggedRoll}
+            devXpInput={devXpInput}
+            setDevXpInput={setDevXpInput}
+            devStatEdit={devStatEdit}
+            setDevStatEdit={setDevStatEdit}
+            onAddXp={async (amt) => {
+              const newXp = (character.xp ?? 0) + amt
+              await supabase.from('characters').update({ xp: newXp }).eq('id', character.id)
+              setCharacter(c => ({ ...c, xp: newXp }))
+              // check level
+              const newLevel = xpToLevel(newXp)
+              if (newLevel > (character.level ?? 1)) {
+                await supabase.from('characters').update({ level: newLevel }).eq('id', character.id)
+                setCharacter(c => ({ ...c, level: newLevel }))
+                setPendingLevelUp(true)
+              }
+            }}
+            onSetStat={async (key, val) => {
+              await supabase.from('characters').update({ [key]: val }).eq('id', character.id)
+              setCharacter(c => ({ ...c, [key]: val }))
+            }}
+            onSetProfBonus={async (val) => {
+              await supabase.from('characters').update({ prof_bonus_override: val }).eq('id', character.id)
+              setCharacter(c => ({ ...c, prof_bonus_override: val }))
+            }}
+            onSetMaxHp={async (val) => {
+              await supabase.from('characters').update({ max_hp: val }).eq('id', character.id)
+              setCharacter(c => ({ ...c, max_hp: val }))
+            }}
+          />
+        )}
+
+        {/* ── Debug Panel (raw AI output) ──────────────────────────── */}
         {debugMode && (
           <div style={{
             background: '#0a0a12', border: '1px solid #2a2a50',
