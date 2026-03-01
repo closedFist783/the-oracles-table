@@ -19,6 +19,9 @@ const PRICES = {
   sub_archmage:   { priceId: 'price_1T4wBFCZ0RoZVqTwijF7pa66', mode: 'subscription', meta: { product_type: 'subscription', tier: 'archmage',   coins: '1000'} },
 }
 
+const TIER_ORDER = ['none', 'wanderer', 'adventurer', 'archmage']
+const tierRank = t => TIER_ORDER.indexOf(t ?? 'none')
+
 export default function Upgrade({ session, profile, onBack }) {
   const [loading, setLoading] = useState(null) // key of item currently buying
 
@@ -126,42 +129,71 @@ export default function Upgrade({ session, profile, onBack }) {
       </div>
 
       {/* ── Subscriptions ──────────────────────────────────────── */}
-      <h3 style={{ marginBottom: '14px', fontSize: '1rem' }}>🌟 Subscription</h3>
+      <h3 style={{ marginBottom: '4px', fontSize: '1rem' }}>🌟 Subscription</h3>
+      {profile?.subscription_tier && profile.subscription_tier !== 'none' && (
+        <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '14px' }}>
+          Active plan: <strong style={{ color: 'var(--gold)', textTransform: 'capitalize' }}>{profile.subscription_tier}</strong>
+          {' — '}to downgrade, cancel your current subscription in Stripe first.
+        </p>
+      )}
+      {(!profile?.subscription_tier || profile.subscription_tier === 'none') && (
+        <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '14px' }}>Choose a plan to get monthly coins and unlock character slots.</p>
+      )}
       <div className="upgrade-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', marginBottom: '20px' }}>
         {[
           {
-            key: 'sub_wanderer', name: 'Wanderer', price: '$4.99/mo', icon: '🌙',
-            perks: ['200 coins / month', 'Rollover up to 100 coins', 'Exclusive lore drops'],
+            key: 'sub_wanderer', tier: 'wanderer', name: 'Wanderer', price: '$4.99/mo', icon: '🌙',
+            perks: ['200 coins / month', '2 character slots', 'Rollover up to 100 coins'],
           },
           {
-            key: 'sub_adventurer', name: 'Adventurer', price: '$7.99/mo', icon: '⚔️',
-            perks: ['450 coins / month', '1 character shard / month', 'Rollover up to 200 coins', 'All Wanderer perks'],
+            key: 'sub_adventurer', tier: 'adventurer', name: 'Adventurer', price: '$7.99/mo', icon: '⚔️',
+            perks: ['450 coins / month', '3 character slots', '1 character shard / month', 'Rollover up to 200 coins'],
             featured: true, badge: '🔥 Most Popular',
           },
           {
-            key: 'sub_archmage', name: 'Archmage', price: '$12.99/mo', icon: '🔮',
-            perks: ['1,000 coins / month', '2 character shards / month', 'Unlimited coin rollover', 'Priority GM quality', 'All Adventurer perks'],
+            key: 'sub_archmage', tier: 'archmage', name: 'Archmage', price: '$12.99/mo', icon: '🔮',
+            perks: ['1,000 coins / month', '5 character slots', '2 character shards / month', 'Unlimited coin rollover', 'Priority GM quality'],
             badge: '💎 Best Value',
           },
-        ].map(p => (
-          <div key={p.key} className={`upgrade-card ${p.featured ? 'featured' : ''}`}>
-            <div className="uc-icon">{p.icon}</div>
-            <div className="uc-name">{p.name}</div>
-            {p.badge && (
-              <div style={{ fontSize: '0.7rem', color: 'var(--gold)', fontWeight: 'bold', marginBottom: '8px' }}>{p.badge}</div>
-            )}
-            <div className="uc-desc" style={{ textAlign: 'left' }}>
-              {p.perks.map(pk => (
-                <div key={pk} style={{ marginBottom: '3px', display: 'flex', gap: '5px' }}>
-                  <span style={{ color: 'var(--gold)', flexShrink: 0 }}>✓</span>
-                  <span>{pk}</span>
+        ].map(p => {
+          const currentRank = tierRank(profile?.subscription_tier)
+          const thisRank    = tierRank(p.tier)
+          const isCurrent   = currentRank === thisRank && thisRank > 0
+          const isLower     = thisRank < currentRank
+          const isDisabled  = isCurrent || isLower
+          return (
+            <div key={p.key} className={`upgrade-card ${p.featured ? 'featured' : ''}`}
+              style={{ opacity: isDisabled ? 0.55 : 1, position: 'relative' }}>
+              {isCurrent && (
+                <div style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '0.65rem',
+                  background: 'var(--gold)', color: '#1a1200', borderRadius: '4px', padding: '2px 6px', fontWeight: 'bold' }}>
+                  ACTIVE
                 </div>
-              ))}
+              )}
+              <div className="uc-icon">{p.icon}</div>
+              <div className="uc-name">{p.name}</div>
+              {p.badge && (
+                <div style={{ fontSize: '0.7rem', color: 'var(--gold)', fontWeight: 'bold', marginBottom: '8px' }}>{p.badge}</div>
+              )}
+              <div className="uc-desc" style={{ textAlign: 'left' }}>
+                {p.perks.map(pk => (
+                  <div key={pk} style={{ marginBottom: '3px', display: 'flex', gap: '5px' }}>
+                    <span style={{ color: isCurrent ? 'var(--gold)' : isLower ? 'var(--text-dim)' : 'var(--gold)', flexShrink: 0 }}>✓</span>
+                    <span>{pk}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="uc-price" style={{ marginTop: '12px' }}>{p.price}</div>
+              {isCurrent ? (
+                <button className="btn btn-ghost btn-sm" disabled style={{ width: '100%', marginTop: '8px', opacity: 0.6 }}>Current Plan</button>
+              ) : isLower ? (
+                <button className="btn btn-ghost btn-sm" disabled style={{ width: '100%', marginTop: '8px', opacity: 0.4 }}>Lower Plan</button>
+              ) : (
+                <BuyBtn productKey={p.key} subLabel={currentRank > 0 ? 'Upgrade' : 'Subscribe'} />
+              )}
             </div>
-            <div className="uc-price" style={{ marginTop: '12px' }}>{p.price}</div>
-            <BuyBtn productKey={p.key} subLabel="Subscribe" />
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

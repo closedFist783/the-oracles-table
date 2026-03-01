@@ -64,9 +64,13 @@ serve(async (req) => {
   } else if (pType === 'shards') {
     updates.character_slots = profile.character_slots + shardsAmt
   } else if (pType === 'subscription') {
-    // Grant first-month coins immediately; tier stored for future billing
-    updates.coins            = profile.coins + coinsAmt
+    // Grant first-month coins immediately + tier + slot upgrades
+    const TIER_SLOTS: Record<string, number> = { wanderer: 2, adventurer: 3, archmage: 5 }
+    const newSlots = TIER_SLOTS[subTier ?? ''] ?? 1
+    updates.coins             = profile.coins + coinsAmt
     updates.subscription_tier = subTier ?? ''
+    // Only upgrade slots, never reduce (user may have bought extra shards)
+    if (newSlots > profile.character_slots) updates.character_slots = newSlots
   }
 
   if (Object.keys(updates).length === 0) {
