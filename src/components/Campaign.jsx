@@ -1107,10 +1107,10 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
             {inventoryTab === 'items' && (() => {
               const items = inventory.filter(i => !['ability','feature','spell'].includes(i.item_type))
               if (!items.length) return <p className="empty-state" style={{ padding:'16px 0', fontSize:'0.82rem' }}>Your pack is empty.</p>
-              return ['weapon','armor','spell','item','other'].map(type => {
+              return ['weapon','armor','item','other'].map(type => {
                 const group = items.filter(i => i.item_type === type)
                 if (!group.length) return null
-                const labels = { weapon:'⚔️ Weapons', armor:'🛡️ Armor', spell:'📖 Spells', item:'🎒 Items', other:'📦 Other' }
+                const labels = { weapon:'⚔️ Weapons', armor:'🛡️ Armor', item:'🎒 Items', other:'📦 Other' }
                 const sk = `inv-${type}`
                 const isCollapsed = collapsedSections.has(sk)
                 return (
