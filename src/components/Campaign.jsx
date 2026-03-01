@@ -676,8 +676,9 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
   const [devStatEdit, setDevStatEdit] = useState(false)
   const [debugLog, setDebugLog]       = useState([])
   const [gmPersona, setGmPersona]     = useState('classic')
-  const [pendingLevelUp, setPendingLevelUp] = useState(false)
+  const [levelUpQueue, setLevelUpQueue]     = useState([]) // array of levels to process
   const [showLevelUp, setShowLevelUp]       = useState(false)
+  const pendingLevelUp = levelUpQueue.length > 0
   const [inventoryTab, setInventoryTab]     = useState('items') // 'items' | 'abilities'
   const bottomRef = useRef(null)
   const isDevUser = session.user.id === DEV_USER_ID
@@ -832,7 +833,11 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     setCharacter(c => ({ ...c, xp: newXp, level: newLevel }))
     setXpGain({ amount: xpAward.amount, reason: xpAward.reason, leveledUp, newLevel })
     setTimeout(() => setXpGain(null), 5000)
-    if (leveledUp) setPendingLevelUp(true)
+    if (leveledUp) {
+      const queue = []
+      for (let l = oldLevel + 1; l <= newLevel; l++) queue.push(l)
+      setLevelUpQueue(queue)
+    }
   }
 
   async function applyLevelUp({ newLevel, hpGain, newFeatures, asi, subclass, fightingStyle }) {
@@ -885,8 +890,11 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     // Refresh inventory
     const { data } = await supabase.from('inventory').select('*').eq('campaign_id', campaign.id).order('created_at')
     setInventory(data || [])
-    setPendingLevelUp(false)
-    setShowLevelUp(false)
+    setLevelUpQueue(q => {
+      const next = q.slice(1)
+      if (next.length === 0) setShowLevelUp(false)
+      return next
+    })
   }
 
   async function applyHP(hpUpdate) {
@@ -1558,10 +1566,13 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
               setCharacter(c => ({ ...c, xp: newXp }))
               // check level
               const newLevel = xpToLevel(newXp)
-              if (newLevel > (character.level ?? 1)) {
+              const oldLvl = character.level ?? 1
+              if (newLevel > oldLvl) {
                 await supabase.from('characters').update({ level: newLevel }).eq('id', character.id)
                 setCharacter(c => ({ ...c, level: newLevel }))
-                setPendingLevelUp(true)
+                const q = []
+                for (let l = oldLvl + 1; l <= newLevel; l++) q.push(l)
+                setLevelUpQueue(q)
               }
             }}
             onSetStat={async (key, val) => {
@@ -1659,10 +1670,11 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     </div>
 
     {/* Level-up overlay */}
-    {showLevelUp && character && (
+    {showLevelUp && character && levelUpQueue.length > 0 && (
       <LevelUp
         character={character}
-        newLevel={character.level}
+        newLevel={levelUpQueue[0]}
+        remaining={levelUpQueue.length}
         onComplete={applyLevelUp}
       />
     )}

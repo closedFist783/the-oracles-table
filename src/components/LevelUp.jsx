@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { CLASS_LEVELS, HIT_DICE, SUBCLASSES, spellSlots, profBonus } from '../lib/classes'
 
 const STAT_NAMES = ['STR','DEX','CON','INT','WIS','CHA']
@@ -7,7 +7,60 @@ const STAT_KEYS  = ['str_stat','dex_stat','con_stat','int_stat','wis_stat','cha_
 function mod(n) { return Math.floor((n - 10) / 2) }
 function modStr(n) { return n >= 0 ? `+${n}` : `${n}` }
 
-export default function LevelUp({ character, newLevel, onComplete }) {
+function ParticleBurst() {
+  const canvasRef = useRef(null)
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    canvas.width  = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+    const cx = canvas.width / 2
+    const cy = canvas.height / 2
+    const particles = []
+    const colors = ['#ffd700','#c9a84c','#fff8e0','#ff9f40','#ffe066','#ffffff','#ffb347']
+    for (let i = 0; i < 120; i++) {
+      const angle  = Math.random() * Math.PI * 2
+      const speed  = 3 + Math.random() * 7
+      const size   = 2 + Math.random() * 5
+      const type   = Math.random() > 0.5 ? 'circle' : 'star'
+      particles.push({ x: cx, y: cy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - Math.random() * 2,
+        alpha: 1, size, color: colors[Math.floor(Math.random() * colors.length)], type, rot: Math.random() * Math.PI * 2, spin: (Math.random() - 0.5) * 0.3 })
+    }
+    let frame
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.vx *= 0.98
+        p.alpha -= 0.016; p.rot += p.spin
+        if (p.alpha <= 0) return
+        ctx.save()
+        ctx.globalAlpha = p.alpha
+        ctx.fillStyle = p.color
+        ctx.translate(p.x, p.y)
+        ctx.rotate(p.rot)
+        if (p.type === 'star') {
+          ctx.beginPath()
+          for (let j = 0; j < 5; j++) {
+            const a = (j * 4 * Math.PI) / 5 - Math.PI / 2
+            const r = j % 2 === 0 ? p.size : p.size * 0.4
+            j === 0 ? ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r) : ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r)
+          }
+          ctx.closePath(); ctx.fill()
+        } else {
+          ctx.beginPath(); ctx.arc(0, 0, p.size * 0.5, 0, Math.PI * 2); ctx.fill()
+        }
+        ctx.restore()
+      })
+      if (particles.some(p => p.alpha > 0)) frame = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => cancelAnimationFrame(frame)
+  }, [])
+  return <canvas ref={canvasRef} style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none' }} />
+}
+
+export default function LevelUp({ character, newLevel, remaining = 1, onComplete }) {
   const cls      = character.class
   const classData = CLASS_LEVELS[cls] || {}
   const levelEntry = classData[newLevel] || {}
@@ -91,25 +144,72 @@ export default function LevelUp({ character, newLevel, onComplete }) {
     }}>
       {/* Animation phase */}
       {phase === 'animation' && (
-        <div style={{ textAlign: 'center', animation: 'lvlUp 1.6s ease-out forwards' }}>
+        <div style={{ position:'relative', textAlign:'center', width:'100%', maxWidth:'480px' }}>
           <style>{`
-            @keyframes lvlUp {
-              0% { opacity:0; transform:scale(0.3); }
-              60% { opacity:1; transform:scale(1.15); }
-              100% { opacity:1; transform:scale(1); }
+            @keyframes lvlBurst {
+              0%   { opacity:0; transform:scale(0.1) rotate(-15deg); }
+              50%  { opacity:1; transform:scale(1.25) rotate(3deg); }
+              70%  { transform:scale(0.95) rotate(-1deg); }
+              100% { opacity:1; transform:scale(1) rotate(0deg); }
             }
-            @keyframes shimmer {
-              0%,100% { text-shadow:0 0 20px #c9a84c,0 0 40px #c9a84c; }
-              50% { text-shadow:0 0 40px #ffd080,0 0 80px #ffd080,0 0 120px #c9a84c; }
+            @keyframes lvlSub {
+              0%   { opacity:0; transform:translateY(20px); }
+              60%  { opacity:0; transform:translateY(20px); }
+              100% { opacity:1; transform:translateY(0); }
+            }
+            @keyframes goldPulse {
+              0%,100% { text-shadow:0 0 30px #c9a84c, 0 0 60px #c9a84c, 0 0 2px #fff8e0; }
+              50%     { text-shadow:0 0 60px #ffd700, 0 0 120px #ffd700, 0 0 200px #ffb347, 0 0 4px #ffffff; }
+            }
+            @keyframes ringPulse {
+              0%   { transform:scale(0.5); opacity:0.8; }
+              100% { transform:scale(2.5); opacity:0; }
+            }
+            @keyframes badgePop {
+              0%   { transform:scale(0); opacity:0; }
+              70%  { transform:scale(1.1); opacity:1; }
+              100% { transform:scale(1); opacity:1; }
             }
           `}</style>
-          <div style={{ fontSize: '5rem', marginBottom: '8px' }}>✨</div>
-          <div style={{ fontSize: '1rem', color: 'var(--text-dim)', letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: '12px' }}>Level Up</div>
-          <div style={{ fontSize: '7rem', fontWeight: 'bold', color: 'var(--gold)', lineHeight: 1, animation: 'shimmer 1.5s infinite' }}>
-            {newLevel}
+
+          <ParticleBurst />
+
+          {/* Ring pulse */}
+          <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
+            <div style={{ width:'160px', height:'160px', borderRadius:'50%',
+              border:'3px solid #c9a84c', animation:'ringPulse 1s ease-out 0.1s both' }} />
+            <div style={{ position:'absolute', width:'200px', height:'200px', borderRadius:'50%',
+              border:'2px solid #c9a84c', animation:'ringPulse 1s ease-out 0.3s both' }} />
           </div>
-          <div style={{ fontSize: '1.2rem', color: 'var(--text)', marginTop: '12px' }}>
-            {character.name} · {cls}
+
+          {/* Level number */}
+          <div style={{ position:'relative', animation:'lvlBurst 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards' }}>
+            <div style={{ fontSize:'0.85rem', color:'#c9a84c', letterSpacing:'0.4em', textTransform:'uppercase',
+              marginBottom:'4px', fontWeight:'bold', opacity:0.9 }}>
+              LEVEL UP
+            </div>
+            <div style={{ fontSize:'9rem', fontWeight:'900', lineHeight:1, color:'#ffd700',
+              animation:'goldPulse 1.2s ease-in-out 0.5s infinite',
+              textShadow:'0 0 40px #c9a84c, 0 0 80px #c9a84c' }}>
+              {newLevel}
+            </div>
+          </div>
+
+          {/* Name / class */}
+          <div style={{ animation:'lvlSub 1s ease-out forwards' }}>
+            <div style={{ fontSize:'1.1rem', color:'var(--text)', fontWeight:'bold', marginTop:'4px' }}>
+              {character.name}
+            </div>
+            <div style={{ fontSize:'0.85rem', color:'var(--text-dim)', marginTop:'2px' }}>
+              {cls} · Level {newLevel}
+            </div>
+            {remaining > 1 && (
+              <div style={{ marginTop:'10px', display:'inline-block', background:'rgba(201,168,76,0.15)',
+                border:'1px solid var(--gold-dim)', borderRadius:'20px', padding:'4px 14px',
+                fontSize:'0.75rem', color:'var(--gold)', animation:'badgePop 0.4s ease-out 0.9s both' }}>
+                +{remaining - 1} more level{remaining > 2 ? 's' : ''} to go
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -118,8 +218,10 @@ export default function LevelUp({ character, newLevel, onComplete }) {
       {phase === 'features' && (
         <div style={{ maxWidth: '520px', width: '100%' }}>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--gold)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Level {newLevel} Reached</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--text)' }}>{character.name}</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--gold)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+              Level {newLevel} Reached {remaining > 1 && <span style={{ background:'rgba(201,168,76,0.2)', borderRadius:'10px', padding:'1px 8px', marginLeft:'6px' }}>{remaining} levels remaining</span>}
+            </div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--text)' }}>{character.name} · {cls}</div>
           </div>
 
           {/* HP */}
