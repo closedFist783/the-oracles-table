@@ -18,9 +18,14 @@ export default function LevelUp({ character, newLevel, onComplete }) {
   const [choiceIdx, setChoiceIdx] = useState(0)
 
   // ASI state
-  const [asiMode, setAsiMode]   = useState('double') // 'double' | 'split'
+  const [asiMode, setAsiMode]   = useState('double') // 'double' | 'split' | 'feat'
   const [asiStat1, setAsiStat1] = useState(null)
   const [asiStat2, setAsiStat2] = useState(null)
+  const [featName, setFeatName] = useState('')
+
+  const allMaxed = STAT_KEYS.every(k => (character[k] ?? 10) >= 20)
+  // Auto-switch to feat mode if all stats are 20
+  useEffect(() => { if (allMaxed) setAsiMode('feat') }, [allMaxed])
 
   // Subclass / fighting style state
   const [picked, setPicked] = useState(null)
@@ -56,7 +61,7 @@ export default function LevelUp({ character, newLevel, onComplete }) {
     // Build result
     const result = { newLevel, hpGain: hpGain ?? avgHpGain, newFeatures }
     if (choices.some(c => c.type === 'asi')) {
-      result.asi = { mode: asiMode, stat1: asiStat1, stat2: asiStat2 }
+      result.asi = { mode: asiMode, stat1: asiStat1, stat2: asiStat2, feat: asiMode === 'feat' ? featName.trim() : null }
     }
     if (choices.some(c => c.type === 'subclass')) result.subclass = picked
     if (choices.some(c => c.type === 'fighting_style')) result.fightingStyle = picked
@@ -66,6 +71,7 @@ export default function LevelUp({ character, newLevel, onComplete }) {
   function canProceedFromChoice() {
     if (!currentChoice) return true
     if (currentChoice.type === 'asi') {
+      if (asiMode === 'feat') return featName.trim().length > 0
       if (asiMode === 'double') return asiStat1 !== null
       return asiStat1 !== null && asiStat2 !== null && asiStat1 !== asiStat2
     }
@@ -196,41 +202,74 @@ export default function LevelUp({ character, newLevel, onComplete }) {
           {currentChoice.type === 'asi' && (
             <div>
               <h3 style={{ marginBottom: '6px' }}>Ability Score Improvement</h3>
-              <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem', marginBottom: '16px' }}>
-                +2 to one stat, or +1 to two different stats.
-              </p>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                <button className={`btn ${asiMode === 'double' ? 'btn-gold' : 'btn-ghost'} btn-sm`}
-                  onClick={() => { setAsiMode('double'); setAsiStat2(null) }}>+2 to one</button>
-                <button className={`btn ${asiMode === 'split' ? 'btn-gold' : 'btn-ghost'} btn-sm`}
-                  onClick={() => setAsiMode('split')}>+1 to two</button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px' }}>
-                {STAT_NAMES.map((s, i) => {
-                  const val  = character[STAT_KEYS[i]] ?? 10
-                  const isSel1 = asiStat1 === i
-                  const isSel2 = asiStat2 === i
-                  const maxed  = val >= 20
-                  return (
-                    <button key={s} disabled={maxed}
-                      onClick={() => {
-                        if (asiMode === 'double') { setAsiStat1(i) }
-                        else if (asiStat1 === null || asiStat1 === i) { setAsiStat1(i) }
-                        else { setAsiStat2(i) }
-                      }}
-                      style={{ padding: '14px 8px', borderRadius: 'var(--radius)', cursor: maxed ? 'not-allowed' : 'pointer',
-                        background: isSel1 || isSel2 ? 'rgba(201,168,76,0.2)' : 'var(--surface)',
-                        border: `2px solid ${isSel1 || isSel2 ? 'var(--gold)' : 'var(--border)'}`,
-                        opacity: maxed ? 0.4 : 1 }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase' }}>{s}</div>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--gold)' }}>{val}</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
-                        {isSel1 || isSel2 ? <span style={{ color: '#5d9' }}>+1 → {val + 1}</span> : modStr(mod(val))}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
+              {allMaxed && (
+                <div style={{ background: 'rgba(109,62,176,0.15)', border: '1px solid var(--purple)', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: '12px', fontSize: '0.82rem', color: 'var(--text-dim)' }}>
+                  All your stats are at 20 — you must take a feat instead.
+                </div>
+              )}
+              {!allMaxed && (
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                  <button className={`btn ${asiMode === 'double' ? 'btn-gold' : 'btn-ghost'} btn-sm`}
+                    onClick={() => { setAsiMode('double'); setAsiStat2(null) }}>+2 to one stat</button>
+                  <button className={`btn ${asiMode === 'split' ? 'btn-gold' : 'btn-ghost'} btn-sm`}
+                    onClick={() => { setAsiMode('split'); setAsiStat1(null); setAsiStat2(null) }}>+1 to two stats</button>
+                  <button className={`btn ${asiMode === 'feat' ? 'btn-gold' : 'btn-ghost'} btn-sm`}
+                    onClick={() => setAsiMode('feat')}>🎓 Take a Feat</button>
+                </div>
+              )}
+
+              {/* Stat grid — hidden in feat mode */}
+              {asiMode !== 'feat' && !allMaxed && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '8px' }}>
+                  {STAT_NAMES.map((s, i) => {
+                    const val    = character[STAT_KEYS[i]] ?? 10
+                    const isSel1 = asiStat1 === i
+                    const isSel2 = asiStat2 === i
+                    const maxed  = val >= 20
+                    return (
+                      <button key={s} disabled={maxed}
+                        onClick={() => {
+                          if (asiMode === 'double') { setAsiStat1(i) }
+                          else if (asiStat1 === null || asiStat1 === i) { setAsiStat1(i) }
+                          else { setAsiStat2(i) }
+                        }}
+                        style={{ padding: '14px 8px', borderRadius: 'var(--radius)', cursor: maxed ? 'not-allowed' : 'pointer',
+                          background: isSel1 || isSel2 ? 'rgba(201,168,76,0.2)' : 'var(--surface)',
+                          border: `2px solid ${isSel1 || isSel2 ? 'var(--gold)' : 'var(--border)'}`,
+                          opacity: maxed ? 0.35 : 1 }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase' }}>{s}</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--gold)' }}>{val}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+                          {isSel1 || isSel2 ? <span style={{ color: '#5d9' }}>+1 → {val + 1}</span> : modStr(mod(val))}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Feat input */}
+              {(asiMode === 'feat' || allMaxed) && (
+                <div>
+                  <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem', marginBottom: '10px' }}>
+                    Name your feat. It'll be added to your Abilities tab — the GM will honor it in play.
+                  </p>
+                  <input
+                    autoFocus
+                    value={featName}
+                    onChange={e => setFeatName(e.target.value)}
+                    placeholder="e.g. Sharpshooter, War Caster, Lucky…"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius)', fontSize: '0.9rem',
+                      background: 'var(--surface)', border: '2px solid var(--gold-dim)', color: 'var(--text)',
+                      outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  {featName.trim() && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '6px' }}>
+                      ✓ "{featName.trim()}" will be added to your Abilities
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

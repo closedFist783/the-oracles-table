@@ -843,7 +843,15 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
 
     // ASI
     let updatedChar = { ...character, max_hp: newMaxHp, current_hp: newCurrHp }
-    if (asi?.stat1 !== null && asi?.stat1 !== undefined) {
+    if (asi?.feat) {
+      // Feat chosen — add as ability item
+      await supabase.from('inventory').insert({
+        campaign_id: campaign.id, character_id: character.id,
+        name: asi.feat, item_type: 'ability',
+        description: `Feat chosen at level ${newLevel}.`,
+        buff: 'Feat — discuss effects with the GM', quantity: 1, equipped: true,
+      })
+    } else if (asi?.stat1 !== null && asi?.stat1 !== undefined) {
       const key1 = ['str_stat','dex_stat','con_stat','int_stat','wis_stat','cha_stat'][asi.stat1]
       updates[key1] = Math.min(20, (character[key1] ?? 10) + (asi.mode === 'double' ? 2 : 1))
       updatedChar[key1] = updates[key1]
