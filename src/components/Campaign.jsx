@@ -391,9 +391,7 @@ function RollCard({ roll, character, onRolled }) {
     }, 60)
   }
 
-  const hitColor = result && roll.dc != null
-    ? (result.total >= roll.dc ? 'var(--gold)' : 'var(--red)')
-    : 'var(--gold)'
+  const hitColor = isDamage ? 'var(--red)' : 'var(--gold)'
 
   return (
     <div style={{
@@ -417,12 +415,7 @@ function RollCard({ roll, character, onRolled }) {
           <span style={{ color: bonus >= 0 ? 'var(--gold)' : 'var(--red)' }}>{bonus >= 0 ? '+' : ''}{bonus}</span>
           {statLabel && <span style={{ color: 'var(--text-dim)', fontSize: '0.72rem' }}> ({statLabel})</span>}
         </div>
-        {roll.dc != null && (
-          <div style={{ fontSize: '0.8rem' }}>
-            <span style={{ color: 'var(--text-dim)' }}>{roll.type === 'attack' ? 'Target AC' : 'DC'}: </span>
-            <span style={{ color: 'var(--text)' }}>{roll.dc}</span>
-          </div>
-        )}
+        {/* DC intentionally hidden from player */}
       </div>
 
       {!result ? (
@@ -439,13 +432,7 @@ function RollCard({ roll, character, onRolled }) {
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', lineHeight: 1.6 }}>
             <div>{result.rolls.join('+')} = {result.sum} {bonus >= 0 ? '+' : ''}{bonus}</div>
-            {roll.dc != null && (
-              <div style={{ color: result.total >= roll.dc ? '#5d9' : 'var(--red)', fontWeight: 'bold' }}>
-                {result.total >= roll.dc
-                  ? (roll.type === 'attack' ? '⚔️ Hit!' : '✓ Success!')
-                  : (roll.type === 'attack' ? '🛡️ Miss!'  : '✗ Failure')}
-              </div>
-            )}
+
           </div>
         </div>
       )}
@@ -794,18 +781,18 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
   // Called after player clicks Roll in the RollCard
   async function handleRollResult({ rolls, sum, bonus, total, roll }) {
     setPendingRoll(null)
-    const label   = roll.label ?? roll.type
+    const label    = roll.label ?? roll.type
     const bonusStr = bonus >= 0 ? `+${bonus}` : `${bonus}`
+    const statName = roll.stat ? (STAT_FULL[roll.stat] ?? roll.stat) : ''
     let resultMsg
     if (roll.type === 'attack') {
-      const hit = total >= (roll.dc ?? 0)
-      resultMsg = `[Roll Result: ${label} — 1d20${bonusStr} = ${total} vs AC ${roll.dc} → ${hit ? 'Hit!' : 'Miss!'}]`
+      // For attacks GM needs AC to determine hit — still include AC in result
+      resultMsg = `[Roll Result: ${label} — 1d20${bonusStr} = ${total} vs AC ${roll.dc}]`
     } else if (roll.type === 'damage') {
-      resultMsg = `[Roll Result: ${label} — ${roll.dice}${bonusStr} = ${total} damage (rolls: ${rolls.join(', ')})]`
+      resultMsg = `[Roll Result: ${label} — ${roll.dice}${bonusStr} = ${total} damage]`
     } else {
-      const statName = roll.stat ? (STAT_FULL[roll.stat] ?? roll.stat) : ''
-      const success = total >= (roll.dc ?? 0)
-      resultMsg = `[Roll Result: ${label} — 1d20${bonusStr}${statName ? ` (${statName})` : ''} = ${total}${roll.dc != null ? ` vs DC ${roll.dc} → ${success ? 'Success!' : 'Failure'}` : ''}]`
+      // Check/save: just report total — GM determines outcome from tiers
+      resultMsg = `[Roll Result: ${label}${statName ? ` (${statName})` : ''} — ${roll.dice}${bonusStr} = ${total}]`
     }
     await submitTurn(resultMsg, true)
   }
