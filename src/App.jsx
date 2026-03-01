@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard'
 import CharacterCreator from './components/CharacterCreator'
 import Campaign from './components/Campaign'
 import Upgrade from './components/Upgrade'
+import Profile from './components/Profile'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -112,6 +113,10 @@ export default function App() {
           {profile && <span className="topbar-coins">🪙 {profile.coins} coins</span>}
           <button className="btn btn-ghost btn-sm" onClick={() => setView('dashboard')}>Characters</button>
           <button className="btn btn-ghost btn-sm" onClick={() => setView('upgrade')}>Upgrade</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setView('profile')}
+            title="Profile" style={{ fontSize: '1.1rem', padding: '4px 8px' }}>
+            {profile?.avatar ?? '🧙'}
+          </button>
           <button className="btn btn-ghost btn-sm" onClick={() => supabase.auth.signOut()}>Sign Out</button>
         </div>
       </nav>
@@ -145,6 +150,11 @@ export default function App() {
         )}
         {view === 'upgrade' && (
           <Upgrade session={session} profile={profile} onBack={() => setView('dashboard')} />
+        )}
+        {view === 'profile' && (
+          <Profile user={session?.user} profile={profile}
+            onProfileUpdate={p => setProfile(p)}
+            onBack={() => setView('dashboard')} />
         )}
       </div>
     </div>

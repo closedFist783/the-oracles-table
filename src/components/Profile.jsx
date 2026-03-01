@@ -1,0 +1,240 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+
+const AVATARS = [
+  '🧙','⚔️','🛡️','🏹','🗡️','🔮','🧝','🧛','🐉','💀','🦅','🌙',
+  '🔥','⚡','❄️','🌿','🌊','☀️','🌑','🗺️','🎲','📜','💎','👑',
+  '🦁','🐺','🦊','🐻','🐗','🦄','🧟','👻','🧞','🧜','🧚','🧝',
+]
+
+const TIER_BADGE = {
+  none:       { label: 'Free',       color: 'var(--text-dim)' },
+  wanderer:   { label: '🌙 Wanderer',  color: '#a0c4ff' },
+  adventurer: { label: '⚔️ Adventurer',color: 'var(--gold)' },
+  archmage:   { label: '🔮 Archmage',  color: '#d4a8ff' },
+}
+
+export default function Profile({ user, profile, onProfileUpdate, onBack }) {
+  const [stats, setStats]       = useState(null)
+  const [editAvatar, setEditAvatar] = useState(false)
+  const [editUsername, setEditUsername] = useState(false)
+  const [newUsername, setNewUsername] = useState('')
+  const [usernameStatus, setUsernameStatus] = useState(null)
+  const [saving, setSaving]     = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [error, setError]       = useState('')
+  const [successMsg, setSuccess] = useState('')
+
+  useEffect(() => { loadStats() }, [user?.id])
+
+  async function loadStats() {
+    if (!user?.id) return
+    const [charsRes, campaignsRes, messagesRes] = await Promise.all([
+      supabase.from('characters').select('id, xp, level').eq('user_id', user.id),
+      supabase.from('campaigns').select('id').eq('user_id', user.id),
+      supabase.from('campaign_messages').select('id', { count: 'exact', head: true })
+        .eq('role', 'user')
+        .in('campaign_id',
+          (await supabase.from('campaigns').select('id').eq('user_id', user.id)).data?.map(c => c.id) ?? []
+        ),
+    ])
+    const chars     = charsRes.data ?? []
+    const totalXp   = chars.reduce((sum, c) => sum + (c.xp ?? 0), 0)
+    const maxLevel  = chars.length ? Math.max(...chars.map(c => c.level ?? 1)) : 0
+    setStats({
+      characters:  chars.length,
+      campaigns:   campaignsRes.data?.length ?? 0,
+      turns:       messagesRes.count ?? 0,
+      totalXp,
+      maxLevel,
+    })
+  }
+
+  useEffect(() => {
+    if (!editUsername) return
+    const val = newUsername.trim()
+    setUsernameStatus(null)
+    if (!val || val === profile?.username) return
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(val)) { setUsernameStatus('invalid'); return }
+    setUsernameStatus('checking')
+    const t = setTimeout(async () => {
+      const { data } = await supabase.from('profiles').select('id').eq('username', val).maybeSingle()
+      setUsernameStatus(data ? 'taken' : 'available')
+    }, 400)
+    return () => clearTimeout(t)
+  }, [newUsername, editUsername])
+
+  async function saveAvatar(emoji) {
+    setSaving(true)
+    const { error } = await supabase.from('profiles').update({ avatar: emoji }).eq('id', user.id)
+    if (!error) { onProfileUpdate({ ...profile, avatar: emoji }); setEditAvatar(false) }
+    setSaving(false)
+  }
+
+  async function saveUsername() {
+    if (usernameStatus !== 'available' && newUsername.trim() !== profile?.username) {
+      setError('Fix username before saving.'); return
+    }
+    setSaving(true); setError('')
+    const { error } = await supabase.from('profiles').update({ username: newUsername.trim() }).eq('id', user.id)
+    if (error) { setError(error.message) }
+    else { onProfileUpdate({ ...profile, username: newUsername.trim() }); setEditUsername(false); setSuccess('Username updated!') }
+    setSaving(false)
+  }
+
+  async function openPortal() {
+    setPortalLoading(true); setError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`https://vfrjyvbydmoubklqhlfv.supabase.co/functions/v1/create-portal`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnUrl: window.location.href }),
+      })
+      const json = await res.json()
+      if (json.url) window.location.href = json.url
+      else setError(json.error ?? 'Could not open subscription portal.')
+    } catch (e) { setError('Could not open portal.') }
+    setPortalLoading(false)
+  }
+
+  const tier = profile?.subscription_tier ?? 'none'
+  const badge = TIER_BADGE[tier] ?? TIER_BADGE.none
+  const avatar = profile?.avatar ?? '🧙'
+
+  const statCards = stats ? [
+    { icon: '👤', label: 'Characters', value: stats.characters },
+    { icon: '🗺️', label: 'Campaigns',  value: stats.campaigns  },
+    { icon: '💬', label: 'Adventures', value: stats.turns      },
+    { icon: '⭐', label: 'Total XP',   value: stats.totalXp    },
+    { icon: '🏆', label: 'Highest Level', value: stats.maxLevel },
+    { icon: '🪙', label: 'Coins',      value: (profile?.coins ?? 0).toLocaleString() },
+  ] : []
+
+  return (
+    <div style={{ maxWidth: '640px', margin: '0 auto', padding: '24px 16px' }}>
+      {/* Back */}
+      <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: '20px' }}>
+        ← Back
+      </button>
+
+      {error    && <div className="auth-error" style={{ marginBottom: '12px' }}>{error}</div>}
+      {successMsg && <div style={{ background: 'rgba(93,200,100,0.1)', border: '1px solid #5d9', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: '12px', fontSize: '0.85rem', color: '#5d9' }}>{successMsg}</div>}
+
+      {/* Avatar + name card */}
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
+        <div
+          onClick={() => setEditAvatar(v => !v)}
+          style={{ fontSize: '3.5rem', cursor: 'pointer', lineHeight: 1, userSelect: 'none',
+            background: 'var(--surface2)', borderRadius: '50%', width: '72px', height: '72px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: editAvatar ? '2px solid var(--gold)' : '2px solid transparent', transition: 'border 0.2s' }}
+          title="Change avatar"
+        >
+          {avatar}
+        </div>
+        <div style={{ flex: 1 }}>
+          {editUsername ? (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input className="form-input" style={{ flex: 1, minWidth: '120px' }}
+                value={newUsername} onChange={e => setNewUsername(e.target.value)}
+                maxLength={20} placeholder="New username" autoFocus />
+              <button className="btn btn-gold btn-sm" onClick={saveUsername} disabled={saving}>Save</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditUsername(false)}>Cancel</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text)' }}>
+                {profile?.username ?? '(no username)'}
+              </span>
+              <button className="btn btn-ghost btn-sm" style={{ fontSize: '0.72rem' }}
+                onClick={() => { setNewUsername(profile?.username ?? ''); setEditUsername(true) }}>
+                ✏️ Edit
+              </button>
+            </div>
+          )}
+          {usernameStatus && editUsername && (
+            <div style={{ fontSize: '0.73rem', marginTop: '3px', color: usernameStatus === 'available' ? '#5d9' : usernameStatus === 'taken' ? 'var(--red)' : 'var(--text-dim)' }}>
+              { usernameStatus === 'available' ? '✓ Available' : usernameStatus === 'taken' ? '✗ Taken' : usernameStatus === 'checking' ? '⏳ Checking…' : '3–20 chars, letters/numbers/underscore' }
+            </div>
+          )}
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '4px' }}>{user?.email}</div>
+          <div style={{ marginTop: '6px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: badge.color,
+              background: 'rgba(255,255,255,0.06)', borderRadius: '12px', padding: '2px 10px' }}>
+              {badge.label}
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginLeft: '8px' }}>
+              {(profile?.character_slots ?? 1)} slots · {(profile?.coins ?? 0).toLocaleString()} coins
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Avatar picker */}
+      {editAvatar && (
+        <div className="card" style={{ marginBottom: '20px' }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '12px' }}>Choose your avatar:</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: '8px' }}>
+            {AVATARS.map(e => (
+              <button key={e} onClick={() => saveAvatar(e)} disabled={saving}
+                style={{ fontSize: '1.6rem', background: e === avatar ? 'var(--surface2)' : 'none',
+                  border: e === avatar ? '1px solid var(--gold)' : '1px solid transparent',
+                  borderRadius: '8px', cursor: 'pointer', padding: '6px', lineHeight: 1,
+                  opacity: saving ? 0.5 : 1 }}>
+                {e}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stats */}
+      <h3 style={{ marginBottom: '14px', fontSize: '0.9rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        Adventure Statistics
+      </h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '24px' }}>
+        {statCards.map(s => (
+          <div key={s.label} className="card" style={{ textAlign: 'center', padding: '16px 8px' }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>{s.icon}</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--gold)' }}>{s.value}</div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>{s.label}</div>
+          </div>
+        ))}
+        {!stats && <div style={{ gridColumn: '1/-1', color: 'var(--text-dim)', fontSize: '0.85rem', textAlign: 'center', padding: '20px' }}>Loading stats…</div>}
+      </div>
+
+      {/* Subscription */}
+      <h3 style={{ marginBottom: '14px', fontSize: '0.9rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        Subscription
+      </h3>
+      <div className="card" style={{ marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontWeight: 'bold', color: badge.color }}>{badge.label}</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+              {tier === 'none'
+                ? 'Free tier — upgrade for monthly coins and more character slots.'
+                : `Active subscription · ${profile?.character_slots ?? 1} character slots`}
+            </div>
+          </div>
+          {tier !== 'none' && (
+            <button className="btn btn-ghost btn-sm" onClick={openPortal} disabled={portalLoading}
+              style={{ whiteSpace: 'nowrap' }}>
+              {portalLoading ? '…' : 'Manage'}
+            </button>
+          )}
+        </div>
+      </div>
+      {tier !== 'none' && (
+        <div style={{ textAlign: 'center' }}>
+          <button onClick={openPortal} disabled={portalLoading}
+            style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: '0.75rem',
+              cursor: 'pointer', textDecoration: 'underline' }}>
+            {portalLoading ? 'Opening…' : 'Cancel subscription'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -22,6 +22,18 @@ const PRICES = {
 const TIER_ORDER = ['none', 'wanderer', 'adventurer', 'archmage']
 const tierRank = t => TIER_ORDER.indexOf(t ?? 'none')
 
+async function openPortal(session) {
+  const { data: { session: authSession } } = await supabase.auth.getSession()
+  const res = await fetch('https://vfrjyvbydmoubklqhlfv.supabase.co/functions/v1/create-portal', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${authSession.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ returnUrl: window.location.href }),
+  })
+  const json = await res.json()
+  if (json.url) window.location.href = json.url
+  else alert(json.error ?? 'Could not open subscription portal.')
+}
+
 export default function Upgrade({ session, profile, onBack }) {
   const [loading, setLoading] = useState(null) // key of item currently buying
 
@@ -135,6 +147,14 @@ export default function Upgrade({ session, profile, onBack }) {
           Active plan: <strong style={{ color: 'var(--gold)', textTransform: 'capitalize' }}>{profile.subscription_tier}</strong>
           {' — '}to downgrade, cancel your current subscription in Stripe first.
         </p>
+      )}
+      {profile?.subscription_tier && profile.subscription_tier !== 'none' && (
+        <div style={{ textAlign: 'center', marginBottom: '6px' }}>
+          <button onClick={() => openPortal(session)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}>
+            Manage or cancel subscription
+          </button>
+        </div>
       )}
       {(!profile?.subscription_tier || profile.subscription_tier === 'none') && (
         <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '14px' }}>Choose a plan to get monthly coins and unlock character slots.</p>

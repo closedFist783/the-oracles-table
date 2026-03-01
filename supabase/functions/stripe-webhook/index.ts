@@ -69,6 +69,7 @@ serve(async (req) => {
     const newSlots = TIER_SLOTS[subTier ?? ''] ?? 1
     updates.coins             = profile.coins + coinsAmt
     updates.subscription_tier = subTier ?? ''
+    updates.stripe_customer_id = session.customer ?? null
     // Only upgrade slots, never reduce (user may have bought extra shards)
     if (newSlots > profile.character_slots) updates.character_slots = newSlots
   }
