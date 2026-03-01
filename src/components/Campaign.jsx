@@ -214,7 +214,7 @@ function parseGMMessage(text) {
 
   // Extract roll tag
   let roll = null
-  const rollMatch = cleaned.match(/\[\[ROLL:(\{[^[\]]+\})\]\]/)
+  const rollMatch = cleaned.match(/\[\[ROLL:([\s\S]*?)\]\]/)
   if (rollMatch) {
     try { roll = JSON.parse(rollMatch[1]) } catch {}
     cleaned = cleaned.replace(rollMatch[0], '')
@@ -347,89 +347,101 @@ function renderMarkdown(text) {
 }
 
 // ── Roll Card ─────────────────────────────────────────────────────────────────
+// Roll NdX dice, return array of results
+function rollDice(diceStr) {
+  const m = diceStr.match(/^(\d+)d(\d+)$/)
+  if (!m) return [0]
+  const n = parseInt(m[1]), x = parseInt(m[2])
+  return Array.from({ length: n }, () => Math.floor(Math.random() * x) + 1)
+}
+
 function RollCard({ roll, character, onRolled }) {
   const [rolling, setRolling] = useState(false)
-  const [result, setResult] = useState(null) // { d20, bonus, total }
-  const [display, setDisplay] = useState(null) // animating number
+  const [result, setResult]   = useState(null)
+  const [display, setDisplay] = useState(null)
 
-  const statBonus = mod(character[STAT_KEY[roll.stat]] ?? 10)
-  const statLabel = STAT_FULL[roll.stat] ?? roll.stat.toUpperCase()
+  const isDamage = roll.type === 'damage'
+  const dice     = roll.dice ?? '1d20'
+  // bonus: explicit modifier OR stat-derived
+  const statBonus = roll.stat ? mod(character[STAT_KEY[roll.stat]] ?? 10) : 0
+  const bonus     = roll.modifier !== undefined ? roll.modifier : statBonus
+  const statLabel = roll.stat ? (STAT_FULL[roll.stat] ?? roll.stat.toUpperCase()) : null
+  const diceSides = parseInt((dice.match(/d(\d+)/) ?? [])[1] ?? '20')
 
   function execute() {
     setRolling(true)
-    // Animate flicker for 900ms then settle
     let ticks = 0
     const interval = setInterval(() => {
-      setDisplay(Math.floor(Math.random() * 20) + 1)
+      setDisplay(Math.floor(Math.random() * diceSides) + 1)
       ticks++
       if (ticks > 14) {
         clearInterval(interval)
-        const d20    = Math.floor(Math.random() * 20) + 1
-        const total  = d20 + statBonus
+        const rolls = rollDice(dice)
+        const sum   = rolls.reduce((a, b) => a + b, 0)
+        const total = sum + bonus
         setDisplay(null)
-        setResult({ d20, bonus: statBonus, total })
+        setResult({ rolls, sum, bonus, total })
         setRolling(false)
-        // Auto-send after short delay so player can see the result
-        setTimeout(() => onRolled({ d20, bonus: statBonus, total, roll }), 1200)
+        setTimeout(() => onRolled({ rolls, sum, bonus, total, roll }), 1400)
       }
     }, 60)
   }
 
+  const hitColor = result && roll.dc != null
+    ? (result.total >= roll.dc ? 'var(--gold)' : 'var(--red)')
+    : 'var(--gold)'
+
   return (
     <div style={{
-      background: 'rgba(201,168,76,0.06)', border: '1px solid var(--gold-dim)',
+      background: isDamage ? 'rgba(176,48,48,0.08)' : 'rgba(201,168,76,0.06)',
+      border: `1px solid ${isDamage ? 'var(--red)' : 'var(--gold-dim)'}`,
       borderRadius: 'var(--radius)', padding: '16px', margin: '8px 0',
     }}>
-      <div style={{ fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
-        🎲 Roll Required
+      <div style={{ fontSize: '0.72rem', color: isDamage ? 'var(--red)' : 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
+        🎲 {isDamage ? 'Damage Roll' : 'Roll Required'}
       </div>
       <div style={{ fontSize: '1rem', color: 'var(--text)', fontWeight: 'bold', marginBottom: '4px' }}>
-        {roll.type}
+        {roll.label ?? roll.type}
       </div>
-      <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '10px', fontStyle: 'italic' }}>
-        {roll.context}
-      </div>
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '10px' }}>
         <div style={{ fontSize: '0.8rem' }}>
-          <span style={{ color: 'var(--text-dim)' }}>Stat: </span>
-          <span style={{ color: 'var(--gold)' }}>{statLabel}</span>
+          <span style={{ color: 'var(--text-dim)' }}>Dice: </span>
+          <span style={{ color: 'var(--text)' }}>{dice}</span>
         </div>
         <div style={{ fontSize: '0.8rem' }}>
-          <span style={{ color: 'var(--text-dim)' }}>Your bonus: </span>
-          <span style={{ color: statBonus >= 0 ? 'var(--gold)' : 'var(--red)' }}>{modStr(statBonus)}</span>
+          <span style={{ color: 'var(--text-dim)' }}>Modifier: </span>
+          <span style={{ color: bonus >= 0 ? 'var(--gold)' : 'var(--red)' }}>{bonus >= 0 ? '+' : ''}{bonus}</span>
+          {statLabel && <span style={{ color: 'var(--text-dim)', fontSize: '0.72rem' }}> ({statLabel})</span>}
         </div>
-        {roll.dc && (
+        {roll.dc != null && (
           <div style={{ fontSize: '0.8rem' }}>
-            <span style={{ color: 'var(--text-dim)' }}>DC: </span>
+            <span style={{ color: 'var(--text-dim)' }}>{roll.type === 'attack' ? 'Target AC' : 'DC'}: </span>
             <span style={{ color: 'var(--text)' }}>{roll.dc}</span>
           </div>
         )}
       </div>
 
       {!result ? (
-        <button
-          className="btn btn-gold"
-          style={{ marginTop: '14px', fontSize: '1rem', padding: '10px 28px' }}
-          onClick={execute}
-          disabled={rolling}
-        >
+        <button className="btn btn-gold" style={{ fontSize: '1rem', padding: '10px 28px', background: isDamage ? 'var(--red)' : undefined, borderColor: isDamage ? 'var(--red)' : undefined }}
+          onClick={execute} disabled={rolling}>
           {rolling
             ? <span style={{ fontFamily: 'monospace', fontSize: '1.3rem', display: 'inline-block', width: '28px', textAlign: 'center' }}>{display ?? '…'}</span>
-            : '🎲 Roll'}
+            : `🎲 Roll ${dice}`}
         </button>
       ) : (
-        <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            fontSize: '2.2rem', fontWeight: 'bold', color: result.total >= (roll.dc || 0) ? 'var(--gold)' : 'var(--red)',
-            lineHeight: 1,
-          }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ fontSize: '2.4rem', fontWeight: 'bold', color: hitColor, lineHeight: 1 }}>
             {result.total}
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
-            d20: {result.d20} {modStr(result.bonus)} ({statLabel})
-            {roll.dc && <span style={{ marginLeft: '8px', color: result.total >= roll.dc ? '#5d9' : 'var(--red)' }}>
-              {result.total >= roll.dc ? '✓ Success' : '✗ Failure'}
-            </span>}
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', lineHeight: 1.6 }}>
+            <div>{result.rolls.join('+')} = {result.sum} {bonus >= 0 ? '+' : ''}{bonus}</div>
+            {roll.dc != null && (
+              <div style={{ color: result.total >= roll.dc ? '#5d9' : 'var(--red)', fontWeight: 'bold' }}>
+                {result.total >= roll.dc
+                  ? (roll.type === 'attack' ? '⚔️ Hit!' : '✓ Success!')
+                  : (roll.type === 'attack' ? '🛡️ Miss!'  : '✗ Failure')}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -704,9 +716,21 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
   }
 
   // Called after player clicks Roll in the RollCard
-  async function handleRollResult({ d20, bonus, total, roll }) {
+  async function handleRollResult({ rolls, sum, bonus, total, roll }) {
     setPendingRoll(null)
-    const resultMsg = `[Roll Result: ${roll.type} — ${total} (d20: ${d20} ${modStr(bonus)} ${STAT_FULL[roll.stat]} modifier) vs DC ${roll.dc ?? '?'}]`
+    const label   = roll.label ?? roll.type
+    const bonusStr = bonus >= 0 ? `+${bonus}` : `${bonus}`
+    let resultMsg
+    if (roll.type === 'attack') {
+      const hit = total >= (roll.dc ?? 0)
+      resultMsg = `[Roll Result: ${label} — 1d20${bonusStr} = ${total} vs AC ${roll.dc} → ${hit ? 'Hit!' : 'Miss!'}]`
+    } else if (roll.type === 'damage') {
+      resultMsg = `[Roll Result: ${label} — ${roll.dice}${bonusStr} = ${total} damage (rolls: ${rolls.join(', ')})]`
+    } else {
+      const statName = roll.stat ? (STAT_FULL[roll.stat] ?? roll.stat) : ''
+      const success = total >= (roll.dc ?? 0)
+      resultMsg = `[Roll Result: ${label} — 1d20${bonusStr}${statName ? ` (${statName})` : ''} = ${total}${roll.dc != null ? ` vs DC ${roll.dc} → ${success ? 'Success!' : 'Failure'}` : ''}]`
+    }
     await submitTurn(resultMsg, true)
   }
 

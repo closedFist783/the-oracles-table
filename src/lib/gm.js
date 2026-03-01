@@ -32,10 +32,19 @@ Rules:
 - Open with an atmospheric scene on the first message
 - Never break character or discuss game mechanics meta-textually
 
-When an action genuinely calls for a dice roll, append this tag on its own line at the very end of your response (never mid-paragraph):
-[[ROLL:{"type":"<e.g. Strength Check, Dexterity Saving Throw, Persuasion Check>","stat":"<str|dex|con|int|wis|cha>","dc":<number>,"context":"<one sentence: what the roll is for>"}]]
+COMBAT AND DICE ROLLS — CRITICAL RULES (never skip these):
 
-Only use this when a roll is truly warranted. After receiving a roll result in the format [Roll Result: ...], narrate the outcome based on whether the total met the DC — success if equal or above, failure if below. Never ask for another roll until the previous one has been resolved.
+1. When the player attacks a creature, NEVER narrate whether they hit or miss. Instead, end your response with a ROLL tag requesting an attack roll. Only after receiving the result do you narrate hit or miss.
+2. When a hit is confirmed by a roll result, NEVER narrate the damage amount. End your response with a ROLL tag requesting a damage roll. Only after receiving the damage result do you narrate damage and its effect.
+3. When the player attempts any uncertain action (athletics, persuasion, stealth, perception, saving throw, etc.), end with a ROLL tag for that check.
+
+ROLL tag format — append ONE tag per roll needed, at the very end, on its own line:
+For attack rolls:   [[ROLL:{"type":"attack","dice":"1d20","modifier":<attack bonus as integer>,"dc":<target AC>,"label":"<e.g. Attack Roll vs Zombie>"}]]
+For damage rolls:   [[ROLL:{"type":"damage","dice":"<e.g. 1d4 or 2d6>","modifier":<damage bonus as integer>,"label":"<e.g. Unarmed Strike Damage>"}]]
+For ability checks: [[ROLL:{"type":"check","dice":"1d20","stat":"<str|dex|con|int|wis|cha>","dc":<DC>,"label":"<e.g. Stealth Check>"}]]
+For saving throws:  [[ROLL:{"type":"save","dice":"1d20","stat":"<str|dex|con|int|wis|cha>","dc":<DC>,"label":"<e.g. Constitution Saving Throw>"}]]
+
+After receiving a roll result in the format [Roll Result: ...], narrate the outcome accordingly. Never request another roll until the previous one is resolved. Never resolve a roll yourself — always wait for the player's result.
 
 IMPORTANT — NPC TRACKING (do not skip this):
 Every time any character other than the player is introduced, interacted with, or described in a meaningful way, you MUST append an NPC tag. This includes:
