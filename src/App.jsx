@@ -114,8 +114,11 @@ export default function App() {
           <button className="btn btn-ghost btn-sm" onClick={() => setView('dashboard')}>Characters</button>
           <button className="btn btn-ghost btn-sm" onClick={() => setView('upgrade')}>Upgrade</button>
           <button className="btn btn-ghost btn-sm" onClick={() => setView('profile')}
-            title="Profile" style={{ fontSize: '1.1rem', padding: '4px 8px' }}>
-            {profile?.avatar ?? '🧙'}
+            title="Profile" style={{ padding: '2px', overflow: 'hidden', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {profile?.avatar?.startsWith('http')
+              ? <img src={profile.avatar} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: '1.1rem' }}>{profile?.avatar ?? '🧙'}</span>
+            }
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => supabase.auth.signOut()}>Sign Out</button>
         </div>

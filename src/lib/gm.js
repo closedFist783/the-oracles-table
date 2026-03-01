@@ -58,7 +58,21 @@ COMBAT AND DICE ROLLS — CRITICAL RULES (never skip these):
 
 1. When the player attacks a creature, NEVER narrate whether they hit or miss. Instead, end your response with a ROLL tag requesting an attack roll. Only after receiving the result do you narrate hit or miss.
 2. When a hit is confirmed by a roll result, NEVER narrate the damage amount. End your response with a ROLL tag requesting a damage roll. Only after receiving the damage result do you narrate damage and its effect.
-3. When the player attempts any uncertain action (athletics, persuasion, stealth, perception, saving throw, etc.), end with a ROLL tag for that check.
+3. When the player attempts any uncertain action, request a roll. Examples — and this list is not exhaustive:
+   - Looking around carefully, scanning an area, listening for sounds → Perception (WIS) check
+   - Following tracks, navigating wilderness, foraging, finding a trail, hunting → Survival (WIS) check
+   - Identifying a creature, plant, terrain hazard, or natural phenomenon → Nature (INT) check
+   - Detecting or identifying magic, enchantments, spells, arcane symbols, or undead origins → Arcana (INT) or Religion (INT)
+   - Recalling lore about history, people, or places → History (INT) check
+   - Moving silently, hiding, blending in, sneaking → Stealth (DEX) check
+   - Climbing, jumping, shoving, grappling, feats of raw strength → Athletics (STR) check
+   - Acrobatics, balancing, tumbling, tight squeezes → Acrobatics (DEX) check
+   - Reading a person, sensing deception, detecting hidden emotion → Insight (WIS) check
+   - Persuading, deceiving, intimidating, performing → appropriate CHA check
+   - Treating wounds or identifying illness → Medicine (WIS) check
+   - Saving throws against hazards, spells, or environmental danger → appropriate stat
+   
+BE GENEROUS WITH ROLLS. If what the player attempts could meaningfully succeed or fail, request a roll. Narrating automatic success for non-trivial scouting, tracking, identification, or social actions is wrong. When in doubt — roll.
 
 ROLL tag format — append ONE tag per roll needed, at the very end, on its own line:
 For attack rolls:   [[ROLL:{"type":"attack","dice":"1d20","modifier":<attack bonus as integer>,"dc":<target AC>,"label":"<e.g. Attack Roll vs Zombie>"}]]

@@ -21,6 +21,24 @@ export default function Profile({ user, profile, onProfileUpdate, onBack }) {
   const [newUsername, setNewUsername] = useState('')
   const [usernameStatus, setUsernameStatus] = useState(null)
   const [saving, setSaving]     = useState(false)
+  const [uploading, setUploading] = useState(false)
+
+  async function handleImageUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) { setError('Image must be under 2MB.'); return }
+    setUploading(true); setError('')
+    const ext  = file.name.split('.').pop()
+    const path = `${user.id}/avatar.${ext}`
+    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    if (upErr) { setError('Upload failed: ' + upErr.message); setUploading(false); return }
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+    const url = publicUrl + '?t=' + Date.now() // cache-bust
+    const { error: saveErr } = await supabase.from('profiles').update({ avatar: url }).eq('id', user.id)
+    if (!saveErr) { onProfileUpdate({ ...profile, avatar: url }); setEditAvatar(false) }
+    else setError('Saved image but failed to update profile.')
+    setUploading(false)
+  }
   const [portalLoading, setPortalLoading] = useState(false)
   const [error, setError]       = useState('')
   const [successMsg, setSuccess] = useState('')
@@ -125,13 +143,16 @@ export default function Profile({ user, profile, onProfileUpdate, onBack }) {
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
         <div
           onClick={() => setEditAvatar(v => !v)}
-          style={{ fontSize: '3.5rem', cursor: 'pointer', lineHeight: 1, userSelect: 'none',
+          style={{ cursor: 'pointer', userSelect: 'none',
             background: 'var(--surface2)', borderRadius: '50%', width: '72px', height: '72px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden',
             border: editAvatar ? '2px solid var(--gold)' : '2px solid transparent', transition: 'border 0.2s' }}
           title="Change avatar"
         >
-          {avatar}
+          {avatar?.startsWith('http')
+            ? <img src={avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+            : <span style={{ fontSize: '3.5rem', lineHeight: 1 }}>{avatar}</span>
+          }
         </div>
         <div style={{ flex: 1 }}>
           {editUsername ? (
@@ -174,7 +195,15 @@ export default function Profile({ user, profile, onProfileUpdate, onBack }) {
       {/* Avatar picker */}
       {editAvatar && (
         <div className="card" style={{ marginBottom: '20px' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: '12px' }}>Choose your avatar:</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Choose an emoji or upload an image:</span>
+            <label style={{ cursor: 'pointer' }}>
+              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} disabled={uploading} />
+              <span className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem', pointerEvents: uploading ? 'none' : 'auto', opacity: uploading ? 0.6 : 1 }}>
+                {uploading ? '⏳ Uploading…' : '📷 Upload Photo'}
+              </span>
+            </label>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: '8px' }}>
             {AVATARS.map(e => (
               <button key={e} onClick={() => saveAvatar(e)} disabled={saving}
