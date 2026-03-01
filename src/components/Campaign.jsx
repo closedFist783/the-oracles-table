@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { sendToGM } from '../lib/gm'
+import { sendToGM, GM_PERSONAS } from '../lib/gm'
 
 const STAT_NAMES = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
 const STAT_KEYS  = ['str_stat', 'dex_stat', 'con_stat', 'int_stat', 'wis_stat', 'cha_stat']
@@ -462,6 +462,48 @@ function CollapsibleSection({ label, sectionKey, collapsed, onToggle, children }
   )
 }
 
+// ── Racial starting features ──────────────────────────────────────────────────
+const RACIAL_FEATURES = {
+  Human:     [{ name: 'Versatile Training', item_type: 'feature', description: 'Humans gain one extra skill proficiency and adapt quickly to new challenges.', buff: '+1 to any one ability score (reflected in character stats)', quantity: 1, equipped: true }],
+  Elf:       [
+    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Fey Ancestry', item_type: 'feature', description: 'You have advantage on saving throws against being charmed, and magic cannot put you to sleep.', buff: 'Advantage vs charm; immune to magical sleep', quantity: 1, equipped: true },
+  ],
+  Dwarf:     [
+    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Dwarven Resilience', item_type: 'feature', description: 'You have advantage on saving throws against poison and resistance against poison damage.', buff: 'Advantage vs poison saves; resistance to poison damage', quantity: 1, equipped: true },
+    { name: 'Stonecunning', item_type: 'feature', description: 'Whenever you make an Intelligence (History) check related to stonework, you are considered proficient.', buff: 'Double proficiency on stonework History checks', quantity: 1, equipped: true },
+  ],
+  Halfling:  [
+    { name: 'Lucky', item_type: 'feature', description: 'When you roll a 1 on a d20 for an attack roll, ability check, or saving throw, you can reroll and must use the new result.', buff: 'Reroll natural 1s on d20 rolls', quantity: 1, equipped: true },
+    { name: 'Brave', item_type: 'feature', description: 'You have advantage on saving throws against being frightened.', buff: 'Advantage vs frightened condition', quantity: 1, equipped: true },
+    { name: 'Halfling Nimbleness', item_type: 'feature', description: 'You can move through the space of any creature that is of a size larger than yours.', buff: 'Move through larger creatures\' spaces', quantity: 1, equipped: true },
+  ],
+  Dragonborn:[
+    { name: 'Breath Weapon', item_type: 'feature', description: 'You can exhale destructive energy as an action. Creatures in a 15-ft cone make a DEX save (DC 8 + CON mod + proficiency).', buff: '2d6 damage (your draconic damage type); recharges on short/long rest', quantity: 1, equipped: true },
+    { name: 'Draconic Ancestry', item_type: 'feature', description: 'You have draconic heritage granting resistance to your damage type.', buff: 'Resistance to draconic ancestry damage type', quantity: 1, equipped: true },
+  ],
+  Gnome:     [
+    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Gnome Cunning', item_type: 'feature', description: 'You have advantage on all Intelligence, Wisdom, and Charisma saving throws against magic.', buff: 'Advantage on INT/WIS/CHA saves vs magic', quantity: 1, equipped: true },
+  ],
+  'Half-Elf':[
+    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Fey Ancestry', item_type: 'feature', description: 'Advantage on saving throws against being charmed; magic cannot put you to sleep.', buff: 'Advantage vs charm; immune to magical sleep', quantity: 1, equipped: true },
+    { name: 'Skill Versatility', item_type: 'feature', description: 'You gain proficiency in two skills of your choice.', buff: '+2 additional skill proficiencies', quantity: 1, equipped: true },
+  ],
+  'Half-Orc':[
+    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Relentless Endurance', item_type: 'feature', description: 'When you are reduced to 0 hit points but not killed outright, you can drop to 1 hit point instead. Once used, recharges on long rest.', buff: 'Drop to 1 HP instead of 0 once per long rest', quantity: 1, equipped: true },
+    { name: 'Savage Attacks', item_type: 'feature', description: 'When you score a critical hit with a melee weapon attack, you can roll one of the weapon\'s damage dice one additional time.', buff: 'Extra damage die on critical hits with melee weapons', quantity: 1, equipped: true },
+  ],
+  Tiefling:  [
+    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Hellish Resistance', item_type: 'feature', description: 'Your infernal bloodline grants you resistance to fire damage.', buff: 'Resistance to fire damage', quantity: 1, equipped: true },
+    { name: 'Infernal Legacy', item_type: 'feature', description: 'You know the Thaumaturgy cantrip. At 3rd level, you can cast Hellish Rebuke once per long rest. At 5th level, you can cast Darkness once per long rest.', buff: 'Thaumaturgy cantrip; Hellish Rebuke at lvl 3; Darkness at lvl 5', quantity: 1, equipped: true },
+  ],
+}
+
 // ── Campaign ──────────────────────────────────────────────────────────────────
 export default function Campaign({ session, profile, campaign, onCoinsChanged, onBack }) {
   const [character, setCharacter]     = useState(null)
@@ -481,6 +523,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
   const [error, setError]             = useState('')
   const [debugMode, setDebugMode]     = useState(false)
   const [debugLog, setDebugLog]       = useState([])
+  const [gmPersona, setGmPersona]     = useState('classic')
   const bottomRef = useRef(null)
   const isDevUser = session.user.id === DEV_USER_ID
 
@@ -682,11 +725,24 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     setInventory(data || [])
   }
 
+  async function initRacialFeatures() {
+    // Only seed once — skip if any feature-type inventory already exists
+    const alreadyHas = inventory.some(i => i.item_type === 'feature')
+    if (alreadyHas) return
+    const features = RACIAL_FEATURES[character.race] || []
+    if (!features.length) return
+    const rows = features.map(f => ({ ...f, campaign_id: campaign.id, character_id: character.id }))
+    await supabase.from('inventory').insert(rows)
+    const { data } = await supabase.from('inventory').select('*').eq('campaign_id', campaign.id).order('created_at')
+    setInventory(data || [])
+  }
+
   async function getOpeningScene() {
     setError('')
     setTyping(true)
-    // Seed starting gear + HP for new adventures — guaranteed, not left to the GM
+    // Seed starting gear + racial features + HP for new adventures
     await initStartingGear().catch(e => dbLog('initGear', e))
+    await initRacialFeatures().catch(e => dbLog('initRacial', e))
     if (!character.max_hp) {
       const HIT_DICE = { Barbarian:12, Fighter:10, Paladin:10, Ranger:8, Bard:8, Cleric:8, Druid:8, Monk:8, Rogue:8, Warlock:8, Sorcerer:6, Wizard:6 }
       const conMod = mod(character.con_stat ?? 10)
@@ -695,7 +751,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       setCharacter(c => ({ ...c, max_hp: maxHp, current_hp: maxHp }))
     }
     try {
-      const gmRaw = await sendToGM([], character)
+      const gmRaw = await sendToGM([], character, { tier: profile?.subscription_tier, persona: gmPersona })
       const { roll, npcs: newNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems } = parseGMMessage(gmRaw)
       const msg = { campaign_id: campaign.id, role: 'assistant', content: gmRaw }
       await supabase.from('campaign_messages').insert(msg)
@@ -761,7 +817,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
 
       await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'user', content: userText })
 
-      const gmRaw  = await sendToGM(nextMsgs.slice(-20), character)
+      const gmRaw  = await sendToGM(nextMsgs, character, { tier: profile?.subscription_tier, persona: gmPersona })
       const { roll, npcs: newNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems } = parseGMMessage(gmRaw)
 
       await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'assistant', content: gmRaw })
@@ -1141,6 +1197,24 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
                   Step into the unknown.
                 </p>
                 {error && <p style={{ color: 'var(--red)', fontSize: '0.8rem', textAlign: 'center' }}>{error}</p>}
+                {profile?.subscription_tier === 'archmage' && (
+                  <div style={{ marginBottom: '16px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>🔮 GM Persona</div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {GM_PERSONAS.map(p => (
+                        <button key={p.id} onClick={() => setGmPersona(p.id)}
+                          title={p.desc}
+                          style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '14px', cursor: 'pointer',
+                            background: gmPersona === p.id ? 'var(--gold)' : 'var(--surface2)',
+                            color: gmPersona === p.id ? '#1a1200' : 'var(--text-dim)',
+                            border: `1px solid ${gmPersona === p.id ? 'var(--gold)' : 'var(--border)'}`,
+                            fontWeight: gmPersona === p.id ? 'bold' : 'normal' }}>
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <button className="btn btn-gold" style={{ padding: '12px 36px', fontSize: '1rem', marginTop: '4px' }} onClick={getOpeningScene}>
                   {error ? '🎲 Try Again' : '🎲 Begin Adventure'}
                 </button>

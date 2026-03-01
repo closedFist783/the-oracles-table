@@ -49,6 +49,16 @@ const BACKGROUNDS = [
 const STAT_NAMES = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
 const STAT_KEYS  = ['str_stat', 'dex_stat', 'con_stat', 'int_stat', 'wis_stat', 'cha_stat']
 
+// Auto-assign priority per class: indices into STAT_NAMES (STR=0,DEX=1,CON=2,INT=3,WIS=4,CHA=5)
+const CLASS_STAT_PRIORITY = {
+  Barbarian: [0,2,1,4,5,3], Bard:     [5,1,2,3,4,0],
+  Cleric:    [4,2,0,1,5,3], Druid:    [4,2,1,3,5,0],
+  Fighter:   [0,2,1,4,5,3], Monk:     [1,4,2,0,3,5],
+  Paladin:   [0,5,2,4,1,3], Ranger:   [1,4,2,0,3,5],
+  Rogue:     [1,3,2,4,5,0], Sorcerer: [5,2,1,3,4,0],
+  Warlock:   [5,2,1,3,4,0], Wizard:   [3,2,1,4,5,0],
+}
+
 // Normal: 4d6 drop lowest — average ~12.2
 function rollNormal() {
   return Array.from({ length: 6 }, () => {
@@ -104,7 +114,8 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
         model: 'claude-haiku-4-5-20251001', max_tokens: 300,
         messages: [{ role: 'user', content: prompt }],
       })
-      setBackstory(msg.content[0].text.trim())
+      // Strip any leading markdown heading (e.g. "# A Shadowed Beginning\n")
+      setBackstory(msg.content[0].text.trim().replace(/^#+\s+[^\n]+\n+/, ''))
       setShowBsGen(false)
       setBsKeywords('')
     } catch (e) {
@@ -399,15 +410,29 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
             </div>
 
             {/* Clear all */}
-            {assigned.some(v => v !== null) && (
-              <button
-                className="btn btn-ghost btn-sm"
-                style={{ marginTop: '8px' }}
-                onClick={() => { setAssigned([null,null,null,null,null,null]); setStatPool(prev => [...prev, ...assigned.filter(v => v !== null)]); setSelected(null) }}
-              >
-                ↺ Clear All
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+              {assigned.some(v => v !== null) && (
+                <button className="btn btn-ghost btn-sm"
+                  onClick={() => { setAssigned([null,null,null,null,null,null]); setStatPool(prev => [...prev, ...assigned.filter(v => v !== null)]); setSelected(null) }}>
+                  ↺ Clear All
+                </button>
+              )}
+              {profile?.subscription_tier === 'archmage' && statPool.length > 0 && (
+                <button className="btn btn-gold btn-sm"
+                  title="Archmage perk: auto-assigns your rolled stats to ideal positions for your class"
+                  onClick={() => {
+                    const priority = CLASS_STAT_PRIORITY[cls] ?? [0,1,2,3,4,5]
+                    const allScores = [...statPool, ...assigned.filter(v => v !== null)].sort((a,b) => b - a)
+                    const newAssigned = [null,null,null,null,null,null]
+                    priority.forEach((slotIdx, rank) => { if (rank < allScores.length) newAssigned[slotIdx] = allScores[rank] })
+                    setAssigned(newAssigned)
+                    setStatPool([])
+                    setSelected(null)
+                  }}>
+                  ⚡ Auto-Assign
+                </button>
+              )}
+            </div>
           </>)}
 
           <div className="creator-nav" style={{ marginTop: '24px' }}>

@@ -5,14 +5,36 @@ const anthropic = new Anthropic({
   dangerouslyAllowBrowser: true, // MVP only — move to edge function before launch
 })
 
-const MODEL = 'claude-haiku-4-5-20251001' // cheap + fast; swap to claude-sonnet-4-6 for richer prose
+const MODEL = 'claude-haiku-4-5-20251001'
 
-export function buildSystemPrompt(character) {
+// ── Context window limits per subscription tier ───────────────────────────────
+const TIER_CONTEXT = { none: 12, wanderer: 20, adventurer: 30, archmage: 50 }
+
+// ── GM personas (Archmage exclusive) ──────────────────────────────────────────
+export const GM_PERSONAS = [
+  { id: 'classic',  label: '📖 Classic',   desc: 'Balanced, atmospheric, traditional fantasy' },
+  { id: 'grim',     label: '🩸 Grim',      desc: 'Brutal and unforgiving — the world shows no mercy' },
+  { id: 'sage',     label: '🌿 Sage',      desc: 'Philosophical and rich — every place has history' },
+  { id: 'comic',    label: '🎭 Comic',     desc: 'Witty and absurd — adventure with a wink' },
+  { id: 'horror',   label: '🕸️ Horror',   desc: 'Creeping dread — safety is never guaranteed' },
+]
+
+const PERSONA_PROMPTS = {
+  classic: '',
+  grim:    `\nTONE — GRIM: Narrate with unflinching brutality. The world is cold and indifferent. NPCs die without ceremony. Describe wounds, exhaustion, and despair vividly. Hope exists but is hard-won. No comic relief.`,
+  sage:    `\nTONE — SAGE: Narrate with philosophical depth and rich sensory detail. Give NPCs ancient wisdom and layered motives. Descriptions are evocative and unhurried. The world feels lived-in and vast.`,
+  comic:   `\nTONE — COMIC: Maintain genuine stakes but weave in dry wit, absurd background details, and sharp NPC banter. The world takes itself seriously — you don't always have to. Keep humor earned, never slapstick.`,
+  horror:  `\nTONE — HORROR: Infuse every scene with creeping dread. Describe the uncanny, the grotesque, the psychologically unsettling. The monster is often unseen. Safety is an illusion. Channel Lovecraft, not gore.`,
+}
+
+export function buildSystemPrompt(character, persona = 'classic') {
   const mod = (n) => Math.floor((n - 10) / 2)
   const sign = (n) => (n >= 0 ? `+${n}` : `${n}`)
   const hp = character.current_hp ?? character.max_hp ?? 0
   const maxHp = character.max_hp ?? 0
-  return `You are a Dungeon Master running a solo D&D 5e adventure.
+  const personaBlock = PERSONA_PROMPTS[persona] ?? ''
+  return `You are a Dungeon Master running a solo D&D 5e adventure.${personaBlock}
+
 
 The player's character:
 - Name: ${character.name}
@@ -112,14 +134,15 @@ Starting equipment guidelines — add these via ITEM tags in the opening scene b
 Always give the character their starting equipment in the opening scene.`
 }
 
-export async function sendToGM(messages, character) {
-  const system = buildSystemPrompt(character)
+export async function sendToGM(messages, character, { tier = 'none', persona = 'classic' } = {}) {
+  const system   = buildSystemPrompt(character, persona)
+  const ctxLimit = TIER_CONTEXT[tier] ?? 12
 
   const filtered = messages
     .filter(m => m.role === 'user' || m.role === 'assistant')
+    .slice(-ctxLimit)
     .map(m => ({ role: m.role, content: m.content }))
 
-  // Anthropic requires at least one message — for the opening scene we send a silent primer
   const payload = filtered.length > 0
     ? filtered
     : [{ role: 'user', content: 'Begin the adventure.' }]
