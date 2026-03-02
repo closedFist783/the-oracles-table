@@ -286,6 +286,64 @@ export default function Profile({ user, profile, onProfileUpdate, onBack }) {
           </button>
         </div>
       )}
+
+      {/* Danger Zone */}
+      <h3 style={{ marginTop: '32px', marginBottom: '14px', fontSize: '0.9rem', color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        Danger Zone
+      </h3>
+      <DeleteAccount session={session} onDeleted={() => window.location.reload()} />
+    </div>
+  )
+}
+
+function DeleteAccount({ session, onDeleted }) {
+  const [confirm, setConfirm] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  async function handleDelete() {
+    setLoading(true); setError('')
+    try {
+      const { supabase } = await import('../lib/supabase')
+      const { data: { session: s } } = await supabase.auth.getSession()
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-account`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${s?.access_token}`, 'Content-Type': 'application/json' },
+      })
+      if (!res.ok) throw new Error('Deletion failed. Please try again.')
+      await supabase.auth.signOut()
+      onDeleted()
+    } catch (e) {
+      setError(e.message)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="card" style={{ border: '1px solid var(--red)', background: 'rgba(176,48,48,0.05)' }}>
+      <p style={{ fontSize: '0.82rem', color: 'var(--text-dim)', marginBottom: '12px' }}>
+        Permanently delete your account and all associated data. This cannot be undone.
+      </p>
+      {error && <p style={{ color: 'var(--red)', fontSize: '0.78rem', marginBottom: '10px' }}>{error}</p>}
+      {!confirm ? (
+        <button className="btn btn-danger btn-sm" onClick={() => setConfirm(true)}>
+          🗑 Delete My Account
+        </button>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <p style={{ fontSize: '0.82rem', color: 'var(--red)', fontWeight: 'bold' }}>
+            Are you sure? All characters, progress, and data will be gone forever.
+          </p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn-danger btn-sm" onClick={handleDelete} disabled={loading}>
+              {loading ? 'Deleting…' : 'Yes, delete everything'}
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setConfirm(false)} disabled={loading}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
