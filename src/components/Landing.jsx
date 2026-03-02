@@ -66,6 +66,7 @@ export default function Landing({ onSignIn, onSignUp }) {
       <footer className="landing-footer">
         <span style={{ fontSize: '0.75rem', opacity: 0.5, color: 'var(--text-dim)' }}>⚠️ Early Access — features may change without notice</span>
         <button className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem', opacity: 0.6 }} onClick={() => window.open('/privacy.html', '_blank')}>Privacy Policy</button>
+        <button className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem', opacity: 0.6 }} onClick={() => window.open('/terms.html', '_blank')}>Terms of Service</button>
         <button className="btn btn-ghost btn-sm" onClick={onSignIn}>Sign In</button>
       </footer>
     </div>
