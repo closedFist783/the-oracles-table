@@ -64,7 +64,6 @@ export default function Landing({ onSignIn, onSignUp }) {
       </section>
 
       <footer className="landing-footer">
-        <span>© 2025 The Oracle's Table</span>
         <button className="btn btn-ghost btn-sm" onClick={onSignIn}>Sign In</button>
       </footer>
     </div>
