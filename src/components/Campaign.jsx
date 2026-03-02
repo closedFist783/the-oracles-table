@@ -306,10 +306,33 @@ function parseGMMessage(text) {
   }
   cleaned = cleaned.replace(/\[\[ITEM_REMOVE:[\s\S]*?\]\]/g, '')
 
+  // Extract REST_PROMPT
+  let restPrompt = false
+  if (/\[\[REST_PROMPT\]\]/.test(cleaned)) {
+    restPrompt = true
+    cleaned = cleaned.replace(/\[\[REST_PROMPT\]\]/g, '')
+  }
+
+  // Extract condition adds
+  const conditionAdds = []
+  const condAddRegex = /\[\[CONDITION_ADD:([\s\S]*?)\]\]/g
+  while ((m = condAddRegex.exec(cleaned)) !== null) {
+    try { const c = JSON.parse(m[1]); if (c.name) conditionAdds.push(c.name) } catch {}
+  }
+  cleaned = cleaned.replace(/\[\[CONDITION_ADD:[\s\S]*?\]\]/g, '')
+
+  // Extract condition removes
+  const conditionRemoves = []
+  const condRemRegex = /\[\[CONDITION_REMOVE:([\s\S]*?)\]\]/g
+  while ((m = condRemRegex.exec(cleaned)) !== null) {
+    try { const c = JSON.parse(m[1]); if (c.name) conditionRemoves.push(c.name) } catch {}
+  }
+  cleaned = cleaned.replace(/\[\[CONDITION_REMOVE:[\s\S]*?\]\]/g, '')
+
   // Strip any incomplete [[TAG... fragments (truncated by token limit)
   cleaned = cleaned.replace(/\[\[[A-Z_]+:[^[\]]*$/g, '').trim()
 
-  return { text: cleaned, roll, npcs, removeNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems }
+  return { text: cleaned, roll, npcs, removeNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems, restPrompt, conditionAdds, conditionRemoves }
 }
 
 // ── Markdown renderer (subset: headings, bold, italic, hr, paragraphs) ────────
@@ -463,6 +486,66 @@ function RollCard({ roll, character, onRolled, riggedRoll }) {
               </div>
             )}
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Rest choice card ──────────────────────────────────────────────────────────
+function RestCard({ onChoose, character }) {
+  const [chosen, setChosen] = useState(null)
+
+  function choose(type) {
+    if (chosen) return
+    setChosen(type)
+    setTimeout(() => onChoose(type), 900)
+  }
+
+  const conMod = Math.floor(((character.con_stat ?? 10) - 10) / 2)
+  const hitDie = { Barbarian:12,Fighter:10,Paladin:10,Ranger:8,Bard:8,Cleric:8,Druid:8,Monk:8,Rogue:8,Warlock:8,Sorcerer:6,Wizard:6 }[character.class] ?? 8
+  const shortHeal = Math.max(1, Math.ceil(hitDie / 2) + conMod)
+
+  return (
+    <div style={{ margin: '12px 0', padding: '18px 20px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '12px', textAlign: 'center' }}>
+      <div style={{ fontSize: '1.4rem', marginBottom: '6px' }}>
+        {chosen === 'long' ? '☀️' : chosen === 'short' ? '🌙' : '🏕️'}
+      </div>
+      <div style={{ fontWeight: 'bold', color: 'var(--gold)', marginBottom: '4px', fontSize: '0.95rem' }}>
+        {chosen ? (chosen === 'long' ? 'Taking a long rest…' : 'Taking a short rest…') : 'Choose your rest'}
+      </div>
+      {!chosen && (
+        <>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '14px' }}>
+            How long do you want to rest?
+          </p>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+            <button onClick={() => choose('short')}
+              style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: '0.85rem' }}>
+              🌙 Short Rest
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '3px' }}>
+                +{shortHeal} HP{character.class === 'Warlock' ? ' · spell slots' : ''}
+              </div>
+            </button>
+            <button onClick={() => choose('long')}
+              style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', background: 'rgba(201,168,76,0.1)', border: '1px solid var(--gold-dim)', color: 'var(--gold)', fontSize: '0.85rem' }}>
+              ☀️ Long Rest
+              <div style={{ fontSize: '0.7rem', color: 'var(--gold-dim)', marginTop: '3px' }}>
+                Full HP · all slots · clear conditions
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+      {chosen && (
+        <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'center', gap: '6px' }}>
+          {[0,1,2].map(i => (
+            <div key={i} style={{
+              width: '8px', height: '8px', borderRadius: '50%',
+              background: 'var(--gold)', opacity: 0.3 + i * 0.35,
+              animation: `pulse 1s ${i * 0.2}s infinite`,
+            }} />
+          ))}
         </div>
       )}
     </div>
@@ -679,6 +762,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
   const [character, setCharacter]     = useState(null)
   const [messages, setMessages]       = useState([])
   const [pendingRoll, setPendingRoll] = useState(null)
+  const [pendingRest, setPendingRest] = useState(false)
   const [npcs, setNpcs]               = useState([])
   const [quests, setQuests]           = useState([])
   const [inventory, setInventory]     = useState([])
@@ -1210,7 +1294,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     }
     try {
       const gmRaw = await sendToGM([], character, { tier: profile?.subscription_tier, persona: gmPersona })
-      const { roll, npcs: newNpcs, removeNpcs: deadNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems } = parseGMMessage(gmRaw)
+      const { roll, npcs: newNpcs, removeNpcs: deadNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems, restPrompt, conditionAdds, conditionRemoves } = parseGMMessage(gmRaw)
       const msg = { campaign_id: campaign.id, role: 'assistant', content: gmRaw }
       await supabase.from('campaign_messages').insert(msg)
       setMessages([{ ...msg, id: Date.now(), created_at: new Date().toISOString() }])
@@ -1224,6 +1308,9 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       if (acUpdate)  applyAC(acUpdate).catch(e => dbLog('applyAC', e))
       upsertInventoryItems(newItems).catch(e => dbLog('upsertItems', e))
       removeInventoryItems(removeItems).catch(e => dbLog('removeItems', e))
+      if (restPrompt) setPendingRest(true)
+      for (const name of conditionAdds) addCondition(name).catch(() => {})
+      for (const name of conditionRemoves) removeCondition(name).catch(() => {})
     } catch (e) {
       setError('The GM is unavailable right now. Please try again.')
     } finally {
@@ -1265,6 +1352,37 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     await submitTurn(resultMsg, true)
   }
 
+  async function handleRest(type) {
+    // type = 'long' | 'short'
+    setPendingRest(false)
+    const conMod = mod(character.con_stat ?? 10)
+    const hitDie = HIT_DICE[character.class] ?? 8
+
+    if (type === 'long') {
+      // Full HP restore, full spell slots, clear conditions
+      const maxSlots = spellSlots(character.class, character.level) ?? {}
+      await supabase.from('characters').update({
+        current_hp: character.max_hp,
+        spell_slots_current: maxSlots,
+        conditions: [],
+      }).eq('id', character.id)
+      setCharacter(c => ({ ...c, current_hp: c.max_hp, spell_slots_current: maxSlots, conditions: [] }))
+      await submitTurn('[Long Rest taken — HP fully restored, spell slots refreshed, conditions cleared.]', true)
+    } else {
+      // Short rest: roll hit die + CON mod, Warlock gets spell slots back
+      const hpGain = Math.max(1, Math.ceil(hitDie / 2) + conMod)
+      const newHp  = Math.min(character.max_hp, (character.current_hp ?? 0) + hpGain)
+      const updates = { current_hp: newHp }
+      if (character.class === 'Warlock') {
+        const maxSlots = spellSlots('Warlock', character.level) ?? {}
+        updates.spell_slots_current = maxSlots
+      }
+      await supabase.from('characters').update(updates).eq('id', character.id)
+      setCharacter(c => ({ ...c, ...updates }))
+      await submitTurn(`[Short Rest taken — recovered ${hpGain} HP${character.class === 'Warlock' ? ', spell slots refreshed' : ''}.]`, true)
+    }
+  }
+
   async function send() {
     if (!input.trim() || typing || coins < 1 || pendingRoll) return
     const text = input.trim()
@@ -1293,7 +1411,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'user', content: userText })
 
       const gmRaw  = await sendToGM(nextMsgs, character, { tier: profile?.subscription_tier, persona: gmPersona })
-      const { roll, npcs: newNpcs, removeNpcs: deadNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems } = parseGMMessage(gmRaw)
+      const { roll, npcs: newNpcs, removeNpcs: deadNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems, restPrompt, conditionAdds, conditionRemoves } = parseGMMessage(gmRaw)
 
       await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'assistant', content: gmRaw })
       await supabase.from('campaigns').update({ last_played_at: new Date().toISOString() }).eq('id', campaign.id)
@@ -1313,6 +1431,9 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       if (acUpdate)  applyAC(acUpdate).catch(e => dbLog('applyAC', e))
       upsertInventoryItems(newItems).catch(e => dbLog('upsertItems', e))
       removeInventoryItems(removeItems).catch(e => dbLog('removeItems', e))
+      if (restPrompt) setPendingRest(true)
+      for (const name of conditionAdds) addCondition(name).catch(() => {})
+      for (const name of conditionRemoves) removeCondition(name).catch(() => {})
     } catch (e) {
       setError(e.message || 'Something went wrong.')
       setMessages(prev => prev.filter(m => m.id !== userMsg.id))
@@ -1356,7 +1477,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
 
   if (!loaded) return <div className="empty-state">Loading adventure...</div>
 
-  const canSend = input.trim() && !typing && coins >= 1 && !pendingRoll && !pendingLevelUp
+  const canSend = input.trim() && !typing && coins >= 1 && !pendingRoll && !pendingLevelUp && !pendingRest
 
   return (
     <>
@@ -1933,6 +2054,11 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
               <RollCard roll={pendingRoll} character={character} onRolled={handleRollResult} riggedRoll={riggedRoll} />
             )}
 
+            {/* Rest choice card */}
+            {pendingRest && !typing && (
+              <RestCard onChoose={handleRest} character={character} />
+            )}
+
             {typing && (
               <div className="message-gm">
                 <div className="msg-label">🎲 Dungeon Master</div>
@@ -1988,7 +2114,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
                   : coins < 1      ? 'No coins remaining — visit Upgrade to continue.'
                   : 'What do you do? (Enter to send, Shift+Enter for newline)'
                 }
-                disabled={typing || coins < 1 || !!pendingRoll || pendingLevelUp}
+                disabled={typing || coins < 1 || !!pendingRoll || pendingLevelUp || pendingRest}
                 style={pendingLevelUp ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               />
               <div className="send-col">

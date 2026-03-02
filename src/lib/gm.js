@@ -182,7 +182,21 @@ Starting equipment guidelines — add these via ITEM tags in the opening scene b
 - Monks: unarmed strike (1d4 + STR bludgeoning), dart ×10 (1d4 piercing, thrown)
 - Warlocks: light crossbow (1d8 piercing, loading, two-handed), leather armor (AC 11 + DEX mod)
 
-Always give the character their starting equipment in the opening scene.`
+Always give the character their starting equipment in the opening scene.
+
+CONDITIONS — track status effects on the player:
+When the player gains a condition (poisoned by an enemy, blinded by a spell, prone from a fall, etc.), append:
+[[CONDITION_ADD:{"name":"Poisoned"}]]
+When a condition ends (cured, expired, saved against), append:
+[[CONDITION_REMOVE:{"name":"Poisoned"}]]
+Standard conditions: Poisoned, Blinded, Deafened, Frightened, Grappled, Incapacitated, Invisible, Paralyzed, Petrified, Prone, Restrained, Stunned, Unconscious, Charmed.
+Always tag condition changes — never silently apply or remove conditions.
+
+RESTING — when the player wants to rest:
+If the player mentions resting, making camp, sleeping, taking a break, or similar — narrate the scene opportunity (1-2 sentences setting the mood), then append exactly:
+[[REST_PROMPT]]
+Do NOT narrate the effects of the rest yourself. Do NOT choose long vs short rest. Wait for the player to choose.
+After the player's rest result arrives (e.g. "[Long Rest taken — HP fully restored...]"), narrate the aftermath: how they feel, what changes in the world, what they notice when they wake/rise.`
 }
 
 export async function sendToGM(messages, character, { tier = 'none', persona = 'classic' } = {}) {
