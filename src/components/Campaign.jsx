@@ -1154,7 +1154,22 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     // HP increase
     const newMaxHp   = (character.max_hp || 0) + hpGain
     const newCurrHp  = (character.current_hp || 0) + hpGain
-    const updates    = { max_hp: newMaxHp, current_hp: newCurrHp }
+    const updates    = { max_hp: newMaxHp, current_hp: newCurrHp, level: newLevel }
+
+    // Spell slot scaling — upgrade to new level's max slots
+    if (CASTER_CLASSES.includes(character.class)) {
+      const newMaxSlots = spellSlots(character.class, newLevel) ?? {}
+      const oldSlots    = character.spell_slots_current ?? {}
+      // Merge: keep current usage but add any new slot levels; bump existing levels to new max if they grew
+      const merged = { ...newMaxSlots }
+      Object.keys(newMaxSlots).forEach(tier => {
+        const oldMax  = (spellSlots(character.class, character.level) ?? {})[tier] ?? 0
+        const oldCurr = oldSlots[tier] ?? oldMax
+        const gained  = (newMaxSlots[tier] ?? 0) - oldMax
+        merged[tier]  = Math.min(newMaxSlots[tier], oldCurr + Math.max(0, gained))
+      })
+      updates.spell_slots_current = merged
+    }
 
     // ASI
     let updatedChar = { ...character, max_hp: newMaxHp, current_hp: newCurrHp }
@@ -1178,7 +1193,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     }
 
     await supabase.from('characters').update(updates).eq('id', character.id)
-    setCharacter(c => ({ ...c, ...updatedChar }))
+    setCharacter(c => ({ ...c, ...updatedChar, level: newLevel, ...(updates.spell_slots_current ? { spell_slots_current: updates.spell_slots_current } : {}) }))
 
     // Add new features as 'ability' inventory items
     const featuresToAdd = [...newFeatures]
@@ -1313,7 +1328,12 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       for (const name of conditionAdds) addCondition(name).catch(() => {})
       for (const name of conditionRemoves) removeCondition(name).catch(() => {})
     } catch (e) {
-      setError('The GM is unavailable right now. Please try again. ' + (e?.message ? `(${e.message})` : ''))
+      const msg = e?.message ?? ''
+      const isOverloaded = msg.includes('overloaded') || msg.includes('529') || msg.includes('overwhelmed')
+      setError(isOverloaded
+        ? '🔮 The GM is resting — servers are busy right now. Wait a moment and try again.'
+        : `The GM is unavailable right now. Please try again. ${msg ? `(${msg})` : ''}`
+      )
     } finally {
       setTyping(false)
     }
