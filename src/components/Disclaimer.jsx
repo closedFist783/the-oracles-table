@@ -39,7 +39,6 @@ export default function Disclaimer() {
           <li>• This is not affiliated with Wizards of the Coast or Dungeons &amp; Dragons</li>
           <li>• D&amp;D 5e rules are used as inspiration; this is not an official product</li>
           <li>• Your data and progress may be reset during major updates (we'll warn you)</li>
-          <li>• AI responses are generated and may occasionally be inaccurate or unexpected</li>
         </ul>
         <p style={{ color: 'var(--text-dim)', fontSize: '0.8rem', marginBottom: '20px', fontStyle: 'italic' }}>
           By continuing, you confirm that you are 18 years of age or older and acknowledge this is an early-access work in progress.
