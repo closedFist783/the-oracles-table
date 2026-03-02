@@ -181,7 +181,8 @@ export default function App() {
         {view === 'profile' && (
           <Profile user={session?.user} profile={profile}
             onProfileUpdate={p => setProfile(p)}
-            onBack={() => setView('dashboard')} />
+            onBack={() => setView('dashboard')}
+            onSignOut={() => supabase.auth.signOut()} />
         )}
       </div>
     </div>

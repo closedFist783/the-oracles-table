@@ -14,7 +14,7 @@ const TIER_BADGE = {
   archmage:   { label: '🔮 Archmage',  color: '#d4a8ff' },
 }
 
-export default function Profile({ user, profile, onProfileUpdate, onBack }) {
+export default function Profile({ user, profile, onProfileUpdate, onBack, onSignOut }) {
   const [stats, setStats]       = useState(null)
   const [editAvatar, setEditAvatar] = useState(false)
   const [editUsername, setEditUsername] = useState(false)
@@ -47,25 +47,28 @@ export default function Profile({ user, profile, onProfileUpdate, onBack }) {
 
   async function loadStats() {
     if (!user?.id) return
-    const [charsRes, campaignsRes, messagesRes] = await Promise.all([
-      supabase.from('characters').select('id, xp, level').eq('user_id', user.id),
-      supabase.from('campaigns').select('id').eq('user_id', user.id),
-      supabase.from('campaign_messages').select('id', { count: 'exact', head: true })
-        .eq('role', 'user')
-        .in('campaign_id',
-          (await supabase.from('campaigns').select('id').eq('user_id', user.id)).data?.map(c => c.id) ?? []
-        ),
-    ])
-    const chars     = charsRes.data ?? []
-    const totalXp   = chars.reduce((sum, c) => sum + (c.xp ?? 0), 0)
-    const maxLevel  = chars.length ? Math.max(...chars.map(c => c.level ?? 1)) : 0
-    setStats({
-      characters:  chars.length,
-      campaigns:   campaignsRes.data?.length ?? 0,
-      turns:       messagesRes.count ?? 0,
-      totalXp,
-      maxLevel,
-    })
+    try {
+      const [charsRes, campaignsRes] = await Promise.all([
+        supabase.from('characters').select('id, xp, level').eq('user_id', user.id),
+        supabase.from('campaigns').select('id').eq('user_id', user.id),
+      ])
+      const chars       = charsRes.data ?? []
+      const campaignIds = campaignsRes.data?.map(c => c.id) ?? []
+      const totalXp     = chars.reduce((sum, c) => sum + (c.xp ?? 0), 0)
+      const maxLevel    = chars.length ? Math.max(...chars.map(c => c.level ?? 1)) : 0
+
+      let turns = 0
+      if (campaignIds.length > 0) {
+        const { count } = await supabase
+          .from('campaign_messages').select('id', { count: 'exact', head: true })
+          .eq('role', 'user').in('campaign_id', campaignIds)
+        turns = count ?? 0
+      }
+
+      setStats({ characters: chars.length, campaigns: campaignIds.length, turns, totalXp, maxLevel })
+    } catch (e) {
+      setStats({ characters: 0, campaigns: 0, turns: 0, totalXp: 0, maxLevel: 0 })
+    }
   }
 
   useEffect(() => {
@@ -132,9 +135,10 @@ export default function Profile({ user, profile, onProfileUpdate, onBack }) {
   return (
     <div style={{ maxWidth: '640px', margin: '0 auto', padding: '24px 16px' }}>
       {/* Back */}
-      <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: '20px' }}>
-        ← Back
-      </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <button className="btn btn-ghost btn-sm" onClick={onBack}>← Back</button>
+        {onSignOut && <button className="btn btn-ghost btn-sm" onClick={onSignOut}>Sign Out</button>}
+      </div>
 
       {error    && <div className="auth-error" style={{ marginBottom: '12px' }}>{error}</div>}
       {successMsg && <div style={{ background: 'rgba(93,200,100,0.1)', border: '1px solid #5d9', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: '12px', fontSize: '0.85rem', color: '#5d9' }}>{successMsg}</div>}
