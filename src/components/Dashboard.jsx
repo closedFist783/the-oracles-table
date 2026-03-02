@@ -39,13 +39,6 @@ export default function Dashboard({ session, profile, onCreateChar, onPlayCampai
     }
   }
 
-  async function deleteCharacter(id, e) {
-    e.stopPropagation()
-    if (!confirm('Delete this character and their adventure?')) return
-    await supabase.from('characters').delete().eq('id', id)
-    loadData()
-  }
-
   const slots = profile?.character_slots ?? 1
 
   if (loading) return <div className="empty-state">Loading your realm...</div>
@@ -82,17 +75,14 @@ export default function Dashboard({ session, profile, onCreateChar, onPlayCampai
                 <button className="btn btn-gold btn-sm" onClick={() => handlePlay(char)}>
                   {camp ? 'Continue ▶' : 'Begin Adventure ⚔️'}
                 </button>
-                <button className="btn btn-danger btn-sm" onClick={e => deleteCharacter(char.id, e)}>
-                  Delete
-                </button>
               </div>
             </div>
           )
         })}
 
         {characters.length < slots && (
-          <div className="new-char-card" onClick={onCreateChar}>
-            + New Character
+          <div className={`new-char-card${characters.length === 0 ? ' onboarding' : ''}`} onClick={onCreateChar}>
+            {characters.length === 0 ? '✨ Create Your First Hero' : '+ New Character'}
           </div>
         )}
 
@@ -107,9 +97,42 @@ export default function Dashboard({ session, profile, onCreateChar, onPlayCampai
       </div>
 
       {characters.length === 0 && (
-        <div className="empty-state" style={{ marginTop: '24px' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🎲</div>
-          <p>No characters yet. Create one to begin your adventure.</p>
+        <div style={{ marginTop: '24px' }}>
+          {/* Welcome banner */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(212,168,67,0.08), rgba(136,85,204,0.08))',
+            border: '1px solid var(--gold-dim)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '28px 24px',
+            textAlign: 'center',
+            marginBottom: '24px',
+          }}>
+            <div style={{ fontSize: '2.8rem', marginBottom: '12px' }}>🎲</div>
+            <h2 style={{ marginBottom: '10px', fontSize: '1.5rem' }}>Welcome to The Oracle's Table!</h2>
+            <p style={{ color: 'var(--text-dim)', lineHeight: '1.6', maxWidth: '480px', margin: '0 auto 20px', fontSize: '0.95rem' }}>
+              Your AI-powered Dungeon Master awaits — craft a hero, step into a living world, and let the story unfold with every choice you make.
+              Every adventure is unique, shaped entirely by you.
+            </p>
+            {/* 3-step visual */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
+              {[
+                { n: '1', label: 'Create your hero' },
+                { arrow: true },
+                { n: '2', label: 'Begin your adventure' },
+                { arrow: true },
+                { n: '3', label: 'Shape your legend' },
+              ].map((item, i) =>
+                item.arrow
+                  ? <span key={i} style={{ color: 'var(--gold-dim)', fontSize: '1.2rem' }}>→</span>
+                  : (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 14px' }}>
+                      <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'var(--purple)', color: '#fff', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{item.n}</span>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--text-mid)' }}>{item.label}</span>
+                    </div>
+                  )
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

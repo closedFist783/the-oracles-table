@@ -7,6 +7,7 @@ import CharacterCreator from './components/CharacterCreator'
 import Campaign from './components/Campaign'
 import Upgrade from './components/Upgrade'
 import Profile from './components/Profile'
+import Disclaimer from './components/Disclaimer'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -69,28 +70,38 @@ export default function App() {
   }
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--gold)', fontStyle: 'italic' }}>
-      Loading...
-    </div>
+    <>
+      <Disclaimer />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--gold)', fontStyle: 'italic' }}>
+        Loading...
+      </div>
+    </>
   )
 
   if (!session) {
     if (!authMode) return (
-      <Landing
-        onSignUp={() => setAuthMode('signup')}
-        onSignIn={() => setAuthMode('signin')}
-      />
+      <>
+        <Disclaimer />
+        <Landing
+          onSignUp={() => setAuthMode('signup')}
+          onSignIn={() => setAuthMode('signin')}
+        />
+      </>
     )
     return (
-      <Auth
-        defaultTab={authMode === 'signup' ? 'signup' : 'login'}
-        onBack={() => setAuthMode(null)}
-      />
+      <>
+        <Disclaimer />
+        <Auth
+          defaultTab={authMode === 'signup' ? 'signup' : 'login'}
+          onBack={() => setAuthMode(null)}
+        />
+      </>
     )
   }
 
   return (
     <div className="app">
+      <Disclaimer />
       {/* Stripe payment toast */}
       {stripeToast && (
         <div style={{
@@ -114,11 +125,24 @@ export default function App() {
           <button className="btn btn-ghost btn-sm" onClick={() => setView('dashboard')}>Characters</button>
           <button className="btn btn-ghost btn-sm" onClick={() => setView('upgrade')}>Upgrade</button>
           <button className="btn btn-ghost btn-sm" onClick={() => setView('profile')}
-            title="Profile" style={{ padding: '2px', overflow: 'hidden', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            title="Profile" style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '20px' }}>
             {profile?.avatar?.startsWith('http')
-              ? <img src={profile.avatar} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
-              : <span style={{ fontSize: '1.1rem' }}>{profile?.avatar ?? '🧙'}</span>
+              ? <img src={profile.avatar} alt="avatar" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+              : profile?.avatar && !profile.avatar.startsWith('http')
+                ? <span style={{ fontSize: '1rem' }}>{profile.avatar}</span>
+                : (() => {
+                    const name = profile?.username || session?.user?.email || ''
+                    const initials = name.includes('@') ? name[0].toUpperCase() : name.slice(0,2).toUpperCase()
+                    return (
+                      <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--gold-dim)', color: 'var(--bg)', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {initials || '?'}
+                      </span>
+                    )
+                  })()
             }
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-mid)', maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {profile?.username || (session?.user?.email?.split('@')[0] ?? '')}
+            </span>
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => supabase.auth.signOut()}>Sign Out</button>
         </div>

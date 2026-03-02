@@ -83,9 +83,17 @@ export default function Auth({ defaultTab = 'login', onBack }) {
             </button>
           </form>
           {tab === 'signup' && (
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '12px', textAlign: 'center' }}>
-              Start with 10 free coins — enough to begin your first adventure.
-            </p>
+            <>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '12px', textAlign: 'center' }}>
+                Start with 10 free coins — enough to begin your first adventure.
+              </p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '8px', textAlign: 'center', lineHeight: '1.5' }}>
+                By signing up, you agree to use this app responsibly. See our{' '}
+                <a href="https://the-oracles-table.vercel.app/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold-dim)', textDecoration: 'underline' }}>Terms</a>
+                {' '}and{' '}
+                <a href="https://the-oracles-table.vercel.app/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold-dim)', textDecoration: 'underline' }}>Privacy Policy</a>.
+              </p>
+            </>
           )}
         </div>
       </div>

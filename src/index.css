@@ -159,6 +159,15 @@ h1, h2, h3 {
   transition: border-color 0.2s, color 0.2s;
 }
 .new-char-card:hover { border-color: var(--gold-dim); color: var(--gold); }
+.new-char-card.onboarding {
+  border-color: var(--gold);
+  color: var(--gold);
+  animation: pulseGoldBorder 1.8s ease-in-out infinite;
+}
+@keyframes pulseGoldBorder {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212,168,67,0.5); border-color: var(--gold); }
+  50% { box-shadow: 0 0 0 6px rgba(212,168,67,0.15); border-color: var(--gold-bright); }
+}
 
 /* ── Character Creator ──────────────────────────────────────────────────────── */
 .creator-steps { display: flex; gap: 6px; margin-bottom: 28px; flex-wrap: wrap; }

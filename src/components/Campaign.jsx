@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { sendToGM, GM_PERSONAS } from '../lib/gm'
-import { xpToLevel, xpForNextLevel, xpProgress, HIT_DICE, getFeaturesForLevel, getAllFeaturesUpToLevel, profBonus } from '../lib/classes'
+import { xpToLevel, xpForNextLevel, xpProgress, HIT_DICE, getFeaturesForLevel, getAllFeaturesUpToLevel, profBonus, spellSlots } from '../lib/classes'
 import LevelUp from './LevelUp'
+import { playButtonClick, playDiceRoll, playLevelUp, playCritical } from '../lib/sounds'
 
 const STAT_NAMES = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
 const STAT_KEYS  = ['str_stat', 'dex_stat', 'con_stat', 'int_stat', 'wis_stat', 'cha_stat']
@@ -31,6 +32,17 @@ const SKILLS = [
 ]
 
 const ITEM_ICONS = { weapon: '⚔️', armor: '🛡️', spell: '📖', item: '🎒', other: '📦' }
+
+const CASTER_CLASSES = ['Bard','Cleric','Druid','Sorcerer','Warlock','Wizard','Paladin','Ranger']
+
+const COMMON_CONDITIONS = ['Poisoned','Blinded','Deafened','Frightened','Grappled','Incapacitated','Invisible','Paralyzed','Petrified','Prone','Restrained','Stunned','Unconscious','Charmed','Exhaustion']
+
+const CONDITION_COLORS = {
+  Poisoned:'#5a9a2a', Blinded:'#6a6a9a', Deafened:'#7a6a5a', Frightened:'#9a3a3a',
+  Grappled:'#7a5a3a', Incapacitated:'#aa2a2a', Invisible:'#4a6a8a', Paralyzed:'#9a2a6a',
+  Petrified:'#7a7a7a', Prone:'#6a5a3a', Restrained:'#8a4a2a', Stunned:'#9a6a2a',
+  Unconscious:'#5a3a7a', Charmed:'#8a3a7a', Exhaustion:'#6a3a2a',
+}
 
 // Standard 5e starting gear per class — seeded automatically on first adventure
 const STARTING_GEAR = {
@@ -687,6 +699,11 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
   const [gmPersona, setGmPersona]     = useState('classic')
   const [levelUpQueue, setLevelUpQueue]     = useState([]) // array of levels to process
   const [showLevelUp, setShowLevelUp]       = useState(false)
+  const [deathSaves, setDeathSaves]         = useState({ successes: 0, failures: 0 })
+  const [showDeathModal, setShowDeathModal] = useState(false)
+  const [showConditionsPicker, setShowConditionsPicker] = useState(false)
+  const [isResume, setIsResume]             = useState(false)
+  const [storySoFarUsed, setStorySoFarUsed] = useState(false)
   const pendingLevelUp = levelUpQueue.length > 0
   const [inventoryTab, setInventoryTab]     = useState('items') // 'items' | 'abilities'
   const bottomRef = useRef(null)
@@ -706,6 +723,8 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
 
   useEffect(() => { loadCampaign() }, [campaign.id])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, typing, pendingRoll])
+  useEffect(() => { if (pendingRoll) playDiceRoll() }, [pendingRoll])
+  useEffect(() => { if (showLevelUp) playLevelUp() }, [showLevelUp])
 
   async function safeQuery(queryPromise, fallback = []) {
     try {
@@ -713,6 +732,144 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       return data ?? fallback
     } catch {
       return fallback
+    }
+  }
+
+  async function appendLog(entry) {
+    if (!character) return
+    const log = character.adventure_log ?? []
+    const newLog = [...log, { ...entry, timestamp: new Date().toISOString() }]
+    await supabase.from('characters').update({ adventure_log: newLog }).eq('id', character.id)
+    setCharacter(c => ({ ...c, adventure_log: newLog }))
+  }
+
+  async function addSystemMessage(content) {
+    const msg = { id: 'sys-' + Date.now(), role: 'system', content, campaign_id: campaign.id, created_at: new Date().toISOString() }
+    await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'system', content })
+    setMessages(prev => [...prev, msg])
+  }
+
+  async function doLongRest() {
+    if (!character) return
+    const maxSlots = spellSlots(character.class, character.level)
+    const freshSlots = {}
+    maxSlots.forEach((count, idx) => { if (count > 0) freshSlots[idx + 1] = 0 })
+    const updates = {
+      current_hp: character.max_hp,
+      spell_slots_current: CASTER_CLASSES.includes(character.class) ? freshSlots : character.spell_slots_current,
+      conditions: [],
+    }
+    await supabase.from('characters').update(updates).eq('id', character.id)
+    setCharacter(c => ({ ...c, ...updates }))
+    setDeathSaves({ successes: 0, failures: 0 })
+    await addSystemMessage('[You take a long rest and wake fully restored.]')
+    const log = character.adventure_log ?? []
+    const newLog = [...log, { type: 'rest', text: 'Took a long rest', timestamp: new Date().toISOString() }]
+    await supabase.from('characters').update({ adventure_log: newLog }).eq('id', character.id)
+    setCharacter(c => ({ ...c, ...updates, adventure_log: newLog }))
+  }
+
+  async function doShortRest() {
+    if (!character) return
+    const conMod = mod(character.con_stat ?? 10)
+    const hitDie = HIT_DICE[character.class] ?? 8
+    const heal = Math.max(1, Math.floor(hitDie / 2) + conMod)
+    const newHp = Math.min(character.max_hp, (character.current_hp ?? 0) + heal)
+    const updates = { current_hp: newHp }
+    if (character.class === 'Warlock') {
+      const maxSlots = spellSlots(character.class, character.level)
+      const freshSlots = {}
+      maxSlots.forEach((count, idx) => { if (count > 0) freshSlots[idx + 1] = 0 })
+      updates.spell_slots_current = freshSlots
+    }
+    await supabase.from('characters').update(updates).eq('id', character.id)
+    setCharacter(c => ({ ...c, ...updates }))
+    await addSystemMessage('[You take a short rest.]')
+  }
+
+  async function rollDeathSave() {
+    const roll = Math.floor(Math.random() * 20) + 1
+    if (roll === 20) {
+      await supabase.from('characters').update({ current_hp: 1 }).eq('id', character.id)
+      setCharacter(c => ({ ...c, current_hp: 1 }))
+      setDeathSaves({ successes: 0, failures: 0 })
+      await addSystemMessage('[Natural 20! You miraculously regain 1 HP and stabilize!]')
+      return
+    }
+    const newSaves = { ...deathSaves }
+    if (roll === 1) {
+      newSaves.failures = Math.min(3, newSaves.failures + 2)
+    } else if (roll >= 10) {
+      newSaves.successes = Math.min(3, newSaves.successes + 1)
+    } else {
+      newSaves.failures = Math.min(3, newSaves.failures + 1)
+    }
+    setDeathSaves({ ...newSaves })
+    if (newSaves.successes >= 3) {
+      await supabase.from('characters').update({ current_hp: 1 }).eq('id', character.id)
+      setCharacter(c => ({ ...c, current_hp: 1 }))
+      setDeathSaves({ successes: 0, failures: 0 })
+      await addSystemMessage('[You stabilize at 1 HP.]')
+    } else if (newSaves.failures >= 3) {
+      setShowDeathModal(true)
+    }
+  }
+
+  async function updateSpellSlot(spellLevel, delta) {
+    const current = character.spell_slots_current ?? {}
+    const maxSlots = spellSlots(character.class, character.level)
+    const maxForLevel = maxSlots[spellLevel - 1] ?? 0
+    const used = current[spellLevel] ?? 0
+    const newUsed = Math.max(0, Math.min(maxForLevel, used + delta))
+    const newSlots = { ...current, [spellLevel]: newUsed }
+    await supabase.from('characters').update({ spell_slots_current: newSlots }).eq('id', character.id)
+    setCharacter(c => ({ ...c, spell_slots_current: newSlots }))
+  }
+
+  async function addCondition(condition) {
+    const current = character.conditions ?? []
+    if (current.includes(condition)) return
+    const updated = [...current, condition]
+    await supabase.from('characters').update({ conditions: updated }).eq('id', character.id)
+    setCharacter(c => ({ ...c, conditions: updated }))
+    setShowConditionsPicker(false)
+  }
+
+  async function removeCondition(condition) {
+    const updated = (character.conditions ?? []).filter(c => c !== condition)
+    await supabase.from('characters').update({ conditions: updated }).eq('id', character.id)
+    setCharacter(c => ({ ...c, conditions: updated }))
+  }
+
+  async function getStorySoFar() {
+    if (storySoFarUsed || coins < 1) return
+    setTyping(true)
+    try {
+      const newCoins = coins - 1
+      await supabase.from('profiles').update({ coins: newCoins }).eq('id', session.user.id)
+      setCoins(newCoins)
+      onCoinsChanged()
+      const last10 = messages.filter(m => m.role !== 'system').slice(-10)
+      const ctx = last10.map(m => `${m.role === 'assistant' ? 'GM' : 'Player'}: ${m.content}`).join('\n\n')
+      const { data, error } = await supabase.functions.invoke('gm-chat', {
+        body: {
+          messages: [{ role: 'user', content: `Here is our adventure so far:\n\n${ctx}\n\nPlease give a 3-4 sentence recap of the adventure so far, written as a narrator.` }],
+          system: 'You are a narrator summarizing a D&D adventure. Be evocative but concise — 3-4 sentences.',
+          max_tokens: 300,
+        }
+      })
+      if (error) throw error
+      const summaryText = data?.content?.[0]?.text ?? data?.text ?? 'The adventure continues...'
+      const summaryMsg = {
+        id: 'summary-' + Date.now(), role: 'summary', content: summaryText,
+        campaign_id: campaign.id, created_at: new Date().toISOString(),
+      }
+      setMessages(prev => [summaryMsg, ...prev])
+      setStorySoFarUsed(true)
+    } catch (e) {
+      setError('Could not fetch story summary.')
+    } finally {
+      setTyping(false)
     }
   }
 
@@ -724,11 +881,21 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       safeQuery(supabase.from('quests').select('*').eq('campaign_id', campaign.id).order('created_at')),
       safeQuery(supabase.from('inventory').select('*').eq('campaign_id', campaign.id).order('created_at')),
     ])
-    setCharacter(char)
+    // Initialize spell slots if needed
+    let finalChar = char
+    if (char && CASTER_CLASSES.includes(char.class) && !char.spell_slots_current) {
+      const maxSlots = spellSlots(char.class, char.level) // array: [4, 3, 2, ...]
+      const slots = {}
+      maxSlots.forEach((count, idx) => { if (count > 0) slots[idx + 1] = 0 })
+      await supabase.from('characters').update({ spell_slots_current: slots }).eq('id', char.id)
+      finalChar = { ...char, spell_slots_current: slots }
+    }
+    setCharacter(finalChar)
     setNpcs(npcRows || [])
     setQuests(questRows || [])
     setInventory(invRows || [])
     setMessages(msgs || [])
+    if (msgs?.length > 0) setIsResume(true)
     // Restore any pending roll from last GM message
     if (msgs?.length) {
       const last = msgs.filter(m => m.role === 'assistant').pop()
@@ -854,6 +1021,14 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
         .update({ status: 'completed', completed_at: new Date().toISOString() })
         .eq('campaign_id', campaign.id)
         .ilike('title', q.title)
+      // Log quest completion
+      if (character) {
+        const log = character.adventure_log ?? []
+        const newLog = [...log, { type: 'quest', text: `Completed: ${q.title}`, timestamp: new Date().toISOString() }]
+        supabase.from('characters').update({ adventure_log: newLog }).eq('id', character.id).then(() => {
+          setCharacter(c => ({ ...c, adventure_log: newLog }))
+        })
+      }
     }
 
     // Refresh quest list
@@ -881,6 +1056,12 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       const queue = []
       for (let l = oldLevel + 1; l <= newLevel; l++) queue.push(l)
       setLevelUpQueue(queue)
+      // Adventure log entry for level up
+      const log = character.adventure_log ?? []
+      const newLog = [...log, { type: 'levelup', text: `Reached level ${newLevel}`, timestamp: new Date().toISOString() }]
+      supabase.from('characters').update({ adventure_log: newLog }).eq('id', character.id).then(() => {
+        setCharacter(c => ({ ...c, adventure_log: newLog }))
+      })
     }
   }
 
@@ -1222,6 +1403,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
               { key: 'inventory', label: `Inv${inventory.length ? ` (${inventory.length})` : ''}` },
               { key: 'quests',    label: `Quests${quests.filter(q => q.status === 'active').length ? ` (${quests.filter(q => q.status === 'active').length})` : ''}` },
               { key: 'chars',     label: `NPCs${npcs.length ? ` (${npcs.length})` : ''}` },
+              { key: 'log',       label: '📜 Log' },
             ].map(({ key, label }) => (
               <button key={key} className={`side-tab${sideTab === key ? ' active' : ''}`} onClick={() => setSideTab(prev => prev === key ? null : key)}>
                 {label}
@@ -1302,6 +1484,101 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
                 </div>
               )
             })()}
+
+            {/* Spell Slots (casters only) */}
+            {CASTER_CLASSES.includes(character.class) && (() => {
+              const maxSlots = spellSlots(character.class, character.level)
+              if (!maxSlots || maxSlots.length === 0) return null
+              const current = character.spell_slots_current ?? {}
+              return (
+                <CollapsibleSection label="✨ Spell Slots" sectionKey="spellslots" collapsed={collapsedSections.has('spellslots')} onToggle={toggleSection}>
+                  {maxSlots.map((total, idx) => {
+                    if (!total) return null
+                    const level = idx + 1
+                    const used = current[level] ?? 0
+                    const remaining = total - used
+                    return (
+                      <div key={level} style={{ marginBottom: '6px' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: '3px' }}>Level {level}</div>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          {Array.from({ length: total }, (_, i) => {
+                            const isUsed = i < used
+                            return (
+                              <button key={i} onClick={() => updateSpellSlot(level, isUsed ? -1 : 1)}
+                                title={isUsed ? 'Click to restore slot' : 'Click to expend slot'}
+                                style={{
+                                  background: 'none', border: 'none', cursor: 'pointer',
+                                  fontSize: '1.1rem', padding: '1px', lineHeight: 1,
+                                  color: isUsed ? 'var(--text-dim)' : 'var(--gold)',
+                                }}>
+                                {isUsed ? '○' : '●'}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </CollapsibleSection>
+              )
+            })()}
+
+            {/* Conditions */}
+            <div style={{ marginBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>⚠️ Conditions</span>
+                <div style={{ position: 'relative' }}>
+                  <button onClick={() => setShowConditionsPicker(p => !p)}
+                    style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-dim)', fontSize: '0.68rem', padding: '2px 6px', cursor: 'pointer' }}>
+                    + Add
+                  </button>
+                  {showConditionsPicker && (
+                    <div style={{
+                      position: 'absolute', right: 0, top: '100%', zIndex: 100,
+                      background: 'var(--surface)', border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius)', padding: '4px', minWidth: '140px',
+                      maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+                    }}>
+                      {COMMON_CONDITIONS.filter(c => !(character.conditions ?? []).includes(c)).map(cond => (
+                        <button key={cond} onClick={() => addCondition(cond)}
+                          style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: 'var(--text)', fontSize: '0.75rem', padding: '4px 8px', cursor: 'pointer', borderRadius: '3px' }}
+                          onMouseEnter={e => e.target.style.background = 'var(--surface2)'}
+                          onMouseLeave={e => e.target.style.background = 'none'}
+                        >{cond}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {(character.conditions ?? []).length === 0
+                ? <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>None</div>
+                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {(character.conditions ?? []).map(cond => (
+                      <div key={cond} style={{
+                        background: (CONDITION_COLORS[cond] ?? '#555') + '33',
+                        border: `1px solid ${CONDITION_COLORS[cond] ?? '#555'}`,
+                        borderRadius: '12px', padding: '2px 8px 2px 6px',
+                        fontSize: '0.68rem', color: 'var(--text)',
+                        display: 'flex', alignItems: 'center', gap: '4px',
+                      }}>
+                        <span>{cond}</span>
+                        <button onClick={() => removeCondition(cond)}
+                          style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', lineHeight: 1 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+              }
+            </div>
+
+            {/* Rest Buttons */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+              <button onClick={doLongRest} className="btn btn-ghost btn-sm" style={{ flex: 1, fontSize: '0.72rem' }} title="Restore all HP and spell slots">
+                ☀️ Long Rest
+              </button>
+              <button onClick={doShortRest} className="btn btn-ghost btn-sm" style={{ flex: 1, fontSize: '0.72rem' }} title={`Restore ~${Math.floor((HIT_DICE[character.class]??8)/2)} HP`}>
+                🌙 Short Rest
+              </button>
+            </div>
 
             {/* Collapsible: Saving Throws */}
             <CollapsibleSection label="Saving Throws" sectionKey="saves" collapsed={collapsedSections.has('saves')} onToggle={toggleSection}>
@@ -1523,6 +1800,35 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
             }
           </>)}
 
+          {/* ── Log Tab ─────────────────────────────────────────────── */}
+          {sideTab === 'log' && (<>
+            {(() => {
+              const log = [...(character.adventure_log ?? [])].reverse()
+              if (!log.length) return <p className="empty-state" style={{ padding: '24px 0', fontSize: '0.82rem' }}>No log entries yet. Your legend is still unwritten.</p>
+              const icons = { levelup: '⭐', quest: '📜', rest: '☀️', event: '⚔️', death: '💀' }
+              return log.map((entry, i) => {
+                const ts = entry.timestamp ? new Date(entry.timestamp) : null
+                const relTime = ts ? (() => {
+                  const diff = Date.now() - ts.getTime()
+                  const mins = Math.floor(diff / 60000)
+                  if (mins < 60) return `${mins}m ago`
+                  const hrs = Math.floor(mins / 60)
+                  if (hrs < 24) return `${hrs}h ago`
+                  return `${Math.floor(hrs/24)}d ago`
+                })() : ''
+                return (
+                  <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '1rem', flexShrink: 0, marginTop: '1px' }}>{icons[entry.type] ?? '⚔️'}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text)' }}>{entry.text}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-dim)', marginTop: '2px' }}>{relTime}</div>
+                    </div>
+                  </div>
+                )
+              })
+            })()}
+          </>)}
+
           </div>
           )}{/* end sidebar-scroll */}
         </div>
@@ -1530,6 +1836,17 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
         {/* Chat */}
         <div className="campaign-main">
           <div className="messages-wrap">
+            {/* Story So Far button */}
+            {isResume && messages.length > 0 && !storySoFarUsed && (
+              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+                <button onClick={getStorySoFar} disabled={typing || coins < 1}
+                  className="btn btn-ghost btn-sm"
+                  style={{ fontSize: '0.78rem', border: '1px solid var(--gold-dim)', color: 'var(--gold)' }}>
+                  📖 Story So Far <span style={{ fontSize: '0.65rem', color: 'var(--text-dim)' }}>(1 🪙)</span>
+                </button>
+              </div>
+            )}
+
             {/* Begin adventure prompt */}
             {messages.length === 0 && !typing && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', padding: '48px 24px', gap: '14px' }}>
@@ -1564,7 +1881,22 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
               </div>
             )}
 
-            {messages.filter(m => m.role !== 'system').map(m => {
+            {messages.map(m => {
+              if (m.role === 'system') {
+                return (
+                  <div key={m.id} style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem', fontStyle: 'italic', padding: '6px 0', userSelect: 'none' }}>
+                    {m.content}
+                  </div>
+                )
+              }
+              if (m.role === 'summary') {
+                return (
+                  <div key={m.id} style={{ border: '1px solid var(--gold)', borderRadius: 'var(--radius)', padding: '14px 16px', margin: '8px 0', background: 'rgba(201,168,76,0.06)' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>📖 Story So Far</div>
+                    <div style={{ fontSize: '0.88rem', color: 'var(--text)', lineHeight: 1.7, fontStyle: 'italic' }}>{m.content}</div>
+                  </div>
+                )
+              }
               if (m.role === 'assistant') {
                 const { text } = parseGMMessage(m.content)
                 return (
@@ -1597,7 +1929,40 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
             <div ref={bottomRef} />
           </div>
 
-          {messages.length > 0 && (
+          {messages.length > 0 && character?.current_hp === 0 && !showDeathModal ? (
+            <div style={{
+              background: 'rgba(176,48,48,0.1)', border: '1px solid var(--red)',
+              borderRadius: 'var(--radius)', padding: '16px', margin: '0',
+            }}>
+              <div style={{ textAlign: 'center', color: 'var(--red)', fontWeight: 'bold', fontSize: '1rem', marginBottom: '12px' }}>
+                💀 Death Saving Throws
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginBottom: '12px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>Successes</div>
+                  <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                    {[0,1,2].map(i => (
+                      <div key={i} style={{ width: '18px', height: '18px', borderRadius: '50%', border: `2px solid var(--green)`, background: i < deathSaves.successes ? 'var(--green)' : 'transparent' }} />
+                    ))}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>Failures</div>
+                  <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                    {[0,1,2].map(i => (
+                      <div key={i} style={{ width: '18px', height: '18px', borderRadius: '50%', border: `2px solid var(--red)`, background: i < deathSaves.failures ? 'var(--red)' : 'transparent' }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <button onClick={rollDeathSave} disabled={typing} className="btn btn-danger"
+                  style={{ fontSize: '0.9rem', padding: '10px 24px' }}>
+                  🎲 Roll Death Save
+                </button>
+              </div>
+            </div>
+          ) : messages.length > 0 && (
             <div className="input-bar">
               <textarea
                 value={input}
@@ -1750,6 +2115,29 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
         remaining={levelUpQueue.length}
         onComplete={applyLevelUp}
       />
+    )}
+
+    {/* Death Modal */}
+    {showDeathModal && (
+      <div style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{
+          background: 'var(--surface)', border: '2px solid var(--red)',
+          borderRadius: 'var(--radius)', padding: '40px', textAlign: 'center',
+          maxWidth: '360px', boxShadow: '0 0 60px rgba(176,48,48,0.4)',
+        }}>
+          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>💀</div>
+          <h2 style={{ color: 'var(--red)', marginBottom: '12px' }}>Your story ends here.</h2>
+          <p style={{ color: 'var(--text-dim)', marginBottom: '24px', fontSize: '0.88rem', lineHeight: 1.6 }}>
+            {character?.name} has fallen. Three death saving throw failures. The adventure is over.
+          </p>
+          <button className="btn btn-ghost" onClick={onBack} style={{ fontSize: '0.9rem', padding: '10px 24px' }}>
+            Return to Characters
+          </button>
+        </div>
+      </div>
     )}
   </>
   )
