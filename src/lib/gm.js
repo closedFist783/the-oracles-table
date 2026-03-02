@@ -212,12 +212,21 @@ export async function sendToGM(messages, character, { tier = 'none', persona = '
     ? filtered
     : [{ role: 'user', content: 'Begin the adventure.' }]
 
-  const { data, error } = await supabase.functions.invoke('gm-chat', {
-    body: { messages: payload, system, max_tokens: 1800 },
-  })
-
-  if (error) throw new Error(error.message ?? JSON.stringify(error))
-  if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error))
-  if (!data?.text) throw new Error('Empty response from GM')
-  return data.text
+  const sleep = ms => new Promise(r => setTimeout(r, ms))
+  let lastErr = null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await sleep(attempt * 1500)
+    const { data, error } = await supabase.functions.invoke('gm-chat', {
+      body: { messages: payload, system, max_tokens: 1800 },
+    })
+    if (error) { lastErr = new Error(error.message ?? JSON.stringify(error)); continue }
+    if (data?.error) {
+      const msg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error)
+      if (msg.includes('overloaded') || msg.includes('529') || msg.includes('529')) { lastErr = new Error('The GM is a bit overwhelmed — please try again in a moment.'); continue }
+      throw new Error(msg)
+    }
+    if (!data?.text) { lastErr = new Error('Empty response from GM'); continue }
+    return data.text
+  }
+  throw lastErr ?? new Error('GM unavailable after retries')
 }
