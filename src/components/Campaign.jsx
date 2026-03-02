@@ -785,7 +785,6 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
   async function deleteNpcs(npcList) {
     if (!npcList?.length) return
     for (const npc of npcList) {
-      // Delete by name OR by the name it replaced (handles remove:true on updated entries)
       const names = [npc.name, npc.replaces].filter(Boolean)
       for (const name of names) {
         await supabase.from('campaign_npcs')
@@ -795,6 +794,42 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     const { data } = await supabase.from('campaign_npcs').select('*')
       .eq('campaign_id', campaign.id).order('first_seen')
     setNpcs(data || [])
+  }
+
+  // Heuristic: scan GM text for death/departure phrases and auto-remove matching NPCs
+  async function autoRemoveDeadNpcs(text, currentNpcs) {
+    if (!currentNpcs?.length || !text) return
+    // Phrases that indicate permanent removal
+    const DEATH_PATTERNS = [
+      /(\b[\w\s']+\b)\s+is\s+dead\b/gi,
+      /(\b[\w\s']+\b)\s+(?:has|have)\s+died\b/gi,
+      /(\b[\w\s']+\b)\s+(?:falls?|fell)\s+dead\b/gi,
+      /(\b[\w\s']+\b)\s+(?:is|are)\s+(?:slain|killed|destroyed|defeated)\b/gi,
+      /(?:kill|slay|defeat)(?:s|ed)?\s+(\b[\w\s']+\b)\b/gi,
+      /death\s+of\s+(\b[\w\s']+\b)\b/gi,
+      /(\b[\w\s']+\b)\s+(?:breathes?|breathing)\s+(?:her|his|their|its)\s+last\b/gi,
+      /(\b[\w\s']+\b)\s+(?:dies|perishes|expires)\b/gi,
+    ]
+    const toRemove = []
+    for (const npc of currentNpcs) {
+      const npcWords = npc.name.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+      for (const pattern of DEATH_PATTERNS) {
+        pattern.lastIndex = 0
+        let match
+        while ((match = pattern.exec(text)) !== null) {
+          const matchedPhrase = (match[1] || match[0]).toLowerCase()
+          // Check if any meaningful word from the NPC name appears in the matched phrase
+          const hit = npcWords.some(word => matchedPhrase.includes(word))
+          if (hit && !toRemove.find(n => n.name === npc.name)) {
+            toRemove.push(npc)
+          }
+        }
+      }
+    }
+    if (toRemove.length) {
+      dbLog('autoRemove', toRemove.map(n => n.name))
+      await deleteNpcs(toRemove)
+    }
   }
 
   async function upsertQuests(newQuests, completedQuests) {
@@ -1001,6 +1036,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       if (roll) setPendingRoll(roll)
       upsertNpcs(newNpcs).catch(e => dbLog('upsertNpcs', e))
       deleteNpcs(deadNpcs).catch(e => dbLog('deleteNpcs', e))
+      autoRemoveDeadNpcs(gmRaw, npcs).catch(e => dbLog('autoRemove', e))
       upsertQuests(newQuests, completedQuests).catch(e => dbLog('upsertQuests', e))
       if (xpAward)   awardXP(xpAward).catch(e => dbLog('awardXP', e))
       if (hpUpdate)  applyHP(hpUpdate).catch(e => dbLog('applyHP', e))
@@ -1088,6 +1124,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       if (roll) setPendingRoll(roll)
       upsertNpcs(newNpcs).catch(e => dbLog('upsertNpcs', e))
       deleteNpcs(deadNpcs).catch(e => dbLog('deleteNpcs', e))
+      autoRemoveDeadNpcs(gmRaw, npcs).catch(e => dbLog('autoRemove', e))
       upsertQuests(newQuests, completedQuests).catch(e => dbLog('upsertQuests', e))
       if (xpAward)   awardXP(xpAward).catch(e => dbLog('awardXP', e))
       if (hpUpdate)  applyHP(hpUpdate).catch(e => dbLog('applyHP', e))

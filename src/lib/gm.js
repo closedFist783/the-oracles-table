@@ -134,7 +134,9 @@ Then when the last one dies:
 [[NPC:{"name":"Last Corrupted Undead","type":"foe","description":"...","known_info":"Defeated","replaces":"Two Corrupted Undead","remove":true}]]
 NEVER create a new entry for the same group with a different count — always use "replaces" to update the existing one in-place. The goal is one NPC entry per distinct group, updated as the group changes.
 
-REMOVING DEAD NPCs: When a creature or group is completely defeated and no longer present, add "remove":true to its NPC tag. This removes it from the tracker entirely. Only use this when the creature(s) are fully dead and gone, not just wounded.
+REMOVING DEAD NPCs: When a named NPC or group is killed, defeated, or permanently leaves the scene, you MUST emit a remove tag. No exceptions. If you narrate that someone dies or is gone, you must follow it with a remove NPC tag.
+Format: [[NPC:{"name":"<exact name from tracker>","remove":true}]]
+You MUST emit this even if you also emit other NPC tags in the same message. Missing a remove tag when someone dies is an error. The remove tag is the only way the player's tracker updates — the narrative alone does nothing.
 
 When THIS SPECIFIC unnamed character says their name or is explicitly identified in this exact scene, add a "replaces" field so the old placeholder entry is renamed rather than duplicated:
 [[NPC:{"name":"Marta Thorne","type":"friend","description":"...","known_info":"...","replaces":"Cloaked Woman at the Inn"}]]
