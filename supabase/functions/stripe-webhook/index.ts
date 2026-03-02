@@ -17,76 +17,114 @@ async function verifyStripeSignature(payload: string, sigHeader: string, secret:
   return computed === sig
 }
 
-serve(async (req) => {
-  const body     = await req.text()
-  const sigHeader = req.headers.get('stripe-signature') ?? ''
-  const secret   = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? ''
+// Monthly grants per tier
+const TIER_COINS: Record<string, number> = {
+  wanderer: 200, adventurer: 450, archmage: 1000,
+}
+const TIER_MONTHLY_SLOTS: Record<string, number> = {
+  wanderer: 0, adventurer: 1, archmage: 2,
+}
+const TIER_BASE_SLOTS: Record<string, number> = {
+  wanderer: 2, adventurer: 3, archmage: 5,
+}
 
-  if (!(await verifyStripeSignature(body, sigHeader, secret))) {
+serve(async (req) => {
+  const body      = await req.text()
+  const sigHeader = req.headers.get('stripe-signature') ?? ''
+  const secret    = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? ''
+
+  if (secret && !(await verifyStripeSignature(body, sigHeader, secret))) {
     return new Response('Invalid signature', { status: 400 })
   }
 
   const event = JSON.parse(body)
 
-  // ── Only handle completed checkout sessions ───────────────────────────────
-  if (event.type !== 'checkout.session.completed') {
-    return new Response('Ignored', { status: 200 })
-  }
-
-  const session   = event.data.object
-  const userId    = session.client_reference_id ?? session.metadata?.user_id
-  const pType     = session.metadata?.product_type   // 'coins' | 'shards' | 'subscription'
-  const coinsAmt  = parseInt(session.metadata?.coins  ?? '0')
-  const shardsAmt = parseInt(session.metadata?.shards ?? '0')
-  const subTier   = session.metadata?.tier            // 'wanderer' | 'adventurer' | 'archmage'
-
-  if (!userId) return new Response('Missing user_id', { status: 400 })
-
-  // ── Use service role key to bypass RLS ────────────────────────────────────
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
-  // ── Fetch current profile ─────────────────────────────────────────────────
-  const { data: profile, error: fetchErr } = await supabase
-    .from('profiles').select('coins, character_slots').eq('id', userId).single()
-  if (fetchErr || !profile) {
-    console.error('Profile fetch failed:', fetchErr)
-    return new Response('Profile not found', { status: 400 })
+  // ── checkout.session.completed — initial purchase fulfillment ──────────────
+  if (event.type === 'checkout.session.completed') {
+    const session   = event.data.object
+    const userId    = session.client_reference_id ?? session.metadata?.user_id
+    const pType     = session.metadata?.product_type
+    const coinsAmt  = parseInt(session.metadata?.coins  ?? '0')
+    const shardsAmt = parseInt(session.metadata?.shards ?? '0')
+    const subTier   = session.metadata?.tier
+
+    if (!userId) return new Response('Missing user_id', { status: 400 })
+
+    const { data: profile, error: fetchErr } = await supabase
+      .from('profiles').select('coins, character_slots, subscription_tier').eq('id', userId).single()
+    if (fetchErr || !profile) return new Response('Profile not found', { status: 400 })
+
+    const updates: Record<string, number | string> = {}
+
+    if (pType === 'coins') {
+      updates.coins = profile.coins + coinsAmt
+    } else if (pType === 'shards') {
+      updates.character_slots = profile.character_slots + shardsAmt
+    } else if (pType === 'subscription') {
+      const baseSlots = TIER_BASE_SLOTS[subTier ?? ''] ?? 1
+      updates.coins              = profile.coins + coinsAmt
+      updates.subscription_tier  = subTier ?? ''
+      updates.stripe_customer_id = session.customer ?? null
+      if (baseSlots > profile.character_slots) updates.character_slots = baseSlots
+    }
+
+    if (Object.keys(updates).length === 0) return new Response('No-op', { status: 200 })
+
+    const { error: updateErr } = await supabase.from('profiles').update(updates).eq('id', userId)
+    if (updateErr) return new Response('Update failed', { status: 500 })
+
+    console.log(`checkout fulfilled ${pType} for ${userId}:`, updates)
+    return new Response('OK', { status: 200 })
   }
 
-  // ── Apply fulfillment ─────────────────────────────────────────────────────
-  const updates: Record<string, number | string> = {}
+  // ── invoice.paid — monthly subscription renewal ────────────────────────────
+  if (event.type === 'invoice.paid') {
+    const invoice = event.data.object
 
-  if (pType === 'coins') {
-    updates.coins = profile.coins + coinsAmt
-  } else if (pType === 'shards') {
-    updates.character_slots = profile.character_slots + shardsAmt
-  } else if (pType === 'subscription') {
-    // Grant first-month coins immediately + tier + slot upgrades
-    const TIER_SLOTS: Record<string, number> = { wanderer: 2, adventurer: 3, archmage: 5 }
-    const newSlots = TIER_SLOTS[subTier ?? ''] ?? 1
-    updates.coins             = profile.coins + coinsAmt
-    updates.subscription_tier = subTier ?? ''
-    updates.stripe_customer_id = session.customer ?? null
-    // Only upgrade slots, never reduce (user may have bought extra shards)
-    if (newSlots > profile.character_slots) updates.character_slots = newSlots
+    // Only process renewals, not the initial subscription creation (already handled above)
+    if (invoice.billing_reason === 'subscription_create') {
+      return new Response('Skipped initial invoice', { status: 200 })
+    }
+
+    const customerId = invoice.customer
+    if (!customerId) return new Response('No customer', { status: 200 })
+
+    // Look up user by stripe_customer_id
+    const { data: profile, error: fetchErr } = await supabase
+      .from('profiles')
+      .select('id, coins, character_slots, subscription_tier')
+      .eq('stripe_customer_id', customerId)
+      .single()
+
+    if (fetchErr || !profile) {
+      console.warn('No profile found for customer:', customerId)
+      return new Response('Profile not found', { status: 200 })
+    }
+
+    const tier = profile.subscription_tier
+    const coinsToAdd = TIER_COINS[tier] ?? 0
+    const slotsToAdd = TIER_MONTHLY_SLOTS[tier] ?? 0
+
+    if (coinsToAdd === 0 && slotsToAdd === 0) return new Response('No grants for tier', { status: 200 })
+
+    const updates: Record<string, number> = {}
+    if (coinsToAdd > 0) updates.coins = profile.coins + coinsToAdd
+    if (slotsToAdd > 0) updates.character_slots = profile.character_slots + slotsToAdd
+
+    const { error: updateErr } = await supabase.from('profiles').update(updates).eq('id', profile.id)
+    if (updateErr) {
+      console.error('Renewal update failed:', updateErr)
+      return new Response('Update failed', { status: 500 })
+    }
+
+    console.log(`renewal granted for ${profile.id} (${tier}): +${coinsToAdd} coins, +${slotsToAdd} slots`)
+    return new Response('OK', { status: 200 })
   }
 
-  if (Object.keys(updates).length === 0) {
-    console.warn('No updates for product_type:', pType)
-    return new Response('No-op', { status: 200 })
-  }
-
-  const { error: updateErr } = await supabase
-    .from('profiles').update(updates).eq('id', userId)
-
-  if (updateErr) {
-    console.error('Profile update failed:', updateErr)
-    return new Response('Update failed', { status: 500 })
-  }
-
-  console.log(`Fulfilled ${pType} for user ${userId}:`, updates)
-  return new Response('OK', { status: 200 })
+  return new Response('Ignored', { status: 200 })
 })
