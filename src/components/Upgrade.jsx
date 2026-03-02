@@ -10,8 +10,8 @@ const PRICES = {
   coins_400:  { priceId: 'price_1T6ODjJTVSSOOaY3leBVuKOR', mode: 'payment', meta: { product_type: 'coins', coins: '400'  } },
   coins_1000: { priceId: 'price_1T6OEeJTVSSOOaY3PdXqjGYm', mode: 'payment', meta: { product_type: 'coins', coins: '1000' } },
   // One-time shard packs
-  shards_1:   { priceId: 'price_1T4w8TCZ0RoZVqTw0LCvZP1G',  mode: 'payment',      meta: { product_type: 'shards', shards: '1'   } },
-  shards_3:   { priceId: 'price_1T4w8rCZ0RoZVqTw2VwM8oY5',  mode: 'payment',      meta: { product_type: 'shards', shards: '3'   } },
+  shards_1:   { priceId: 'price_1T6OPQJTVSSOOaY3iVnFp2gX',  mode: 'payment',      meta: { product_type: 'shards', shards: '1'   } },
+  shards_3:   { priceId: 'price_1T6ORjJTVSSOOaY3web7V7xV',  mode: 'payment',      meta: { product_type: 'shards', shards: '3'   } },
   shards_6:   { priceId: 'price_1T4w9GCZ0RoZVqTwaK39XWjD',  mode: 'payment',      meta: { product_type: 'shards', shards: '6'   } },
   // Subscriptions (recurring prices in Stripe)
   sub_wanderer:   { priceId: 'price_1T4w9rCZ0RoZVqTwGqT75Fil', mode: 'subscription', meta: { product_type: 'subscription', tier: 'wanderer',   coins: '200' } },
@@ -118,19 +118,17 @@ export default function Upgrade({ session, profile, onBack }) {
       <h3 style={{ marginBottom: '14px', fontSize: '1rem' }}>💎 Character Slots</h3>
       <div className="upgrade-grid" style={{ marginBottom: '36px' }}>
         {[
-          { key: 'shards_1', slots: 1, price: '$1.99', icon: '💎',            note: null      },
-          { key: 'shards_3', slots: 3, price: '$4.99', icon: '💎💎💎',        note: 'Save $1' },
-          { key: 'shards_6', slots: 6, price: '$8.99', icon: '💎💎💎💎💎💎',  note: 'Save $3' },
+          { key: 'shards_1', slots: 1, price: '$1.99', was: null,     icon: '💎'           },
+          { key: 'shards_3', slots: 3, price: '$4.99', was: '$5.97',  icon: '💎💎💎'       },
+          { key: 'shards_6', slots: 6, price: '$8.99', was: '$11.94', icon: '💎💎💎💎💎💎' },
         ].map(p => (
           <div key={p.key} className="upgrade-card">
             <div className="uc-icon" style={{ fontSize: '1.4rem', letterSpacing: '-2px' }}>{p.icon}</div>
             <div className="uc-name">+{p.slots} Character Slot{p.slots > 1 ? 's' : ''}</div>
-            <div className="uc-desc">
-              <div style={{ minHeight: '18px' }}>
-                {p.note && <span style={{ fontSize: '0.72rem', color: 'var(--green)', fontWeight: 'bold' }}>{p.note}</span>}
-              </div>
+            <div className="uc-price">
+              {p.was && <span style={{ textDecoration: 'line-through', color: 'var(--text-dim)', fontSize: '0.82rem', marginRight: '6px' }}>{p.was}</span>}
+              {p.price}
             </div>
-            <div className="uc-price">{p.price}</div>
             <BuyBtn productKey={p.key} />
           </div>
         ))}
