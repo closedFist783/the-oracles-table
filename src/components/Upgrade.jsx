@@ -114,23 +114,19 @@ export default function Upgrade({ session, profile, onBack }) {
         ))}
       </div>
 
-      {/* ── Character Shards ───────────────────────────────────── */}
-      <h3 style={{ marginBottom: '8px', fontSize: '1rem' }}>✨ Character Shards</h3>
-      <p style={{ fontSize: '0.82rem', color: 'var(--text-dim)', marginBottom: '14px' }}>
-        Each shard unlocks one additional character slot. Collect multiple heroes.
-      </p>
+      {/* ── Character Slots ────────────────────────────────────── */}
+      <h3 style={{ marginBottom: '14px', fontSize: '1rem' }}>💎 Character Slots</h3>
       <div className="upgrade-grid" style={{ marginBottom: '36px' }}>
         {[
-          { key: 'shards_1', shards: 1, price: '$1.99', icon: '💎',                          note: null     },
-          { key: 'shards_3', shards: 3, price: '$4.99', icon: '💎💎💎',                      note: 'Save $1' },
-          { key: 'shards_6', shards: 6, price: '$8.99', icon: '💎💎💎💎💎💎',               note: 'Save $3' },
+          { key: 'shards_1', slots: 1, price: '$1.99', icon: '💎',            note: null      },
+          { key: 'shards_3', slots: 3, price: '$4.99', icon: '💎💎💎',        note: 'Save $1' },
+          { key: 'shards_6', slots: 6, price: '$8.99', icon: '💎💎💎💎💎💎',  note: 'Save $3' },
         ].map(p => (
           <div key={p.key} className="upgrade-card">
             <div className="uc-icon" style={{ fontSize: '1.4rem', letterSpacing: '-2px' }}>{p.icon}</div>
-            <div className="uc-name">{p.shards} Shard{p.shards > 1 ? 's' : ''}</div>
+            <div className="uc-name">+{p.slots} Character Slot{p.slots > 1 ? 's' : ''}</div>
             <div className="uc-desc">
-              +{p.shards} character slot{p.shards > 1 ? 's' : ''}
-              <div style={{ minHeight: '18px', marginTop: '4px' }}>
+              <div style={{ minHeight: '18px' }}>
                 {p.note && <span style={{ fontSize: '0.72rem', color: 'var(--green)', fontWeight: 'bold' }}>{p.note}</span>}
               </div>
             </div>
@@ -167,12 +163,12 @@ export default function Upgrade({ session, profile, onBack }) {
           },
           {
             key: 'sub_adventurer', tier: 'adventurer', name: 'Adventurer', price: '$7.99/mo', icon: '⚔️',
-            perks: ['450 coins / month', '3 character slots', '1 character shard / month', 'Rollover up to 200 coins'],
+            perks: ['450 coins / month', '3 character slots', '1 new character slot / month', 'Rollover up to 200 coins'],
             featured: true, badge: '🔥 Most Popular',
           },
           {
             key: 'sub_archmage', tier: 'archmage', name: 'Archmage', price: '$12.99/mo', icon: '🔮',
-            perks: ['1,000 coins / month', '5 character slots', '2 character shards / month', 'Unlimited coin rollover', 'Priority GM quality'],
+            perks: ['1,000 coins / month', '5 character slots', '2 new character slots / month', 'Unlimited coin rollover', 'Priority GM quality'],
             badge: '💎 Best Value',
           },
         ].map(p => {
