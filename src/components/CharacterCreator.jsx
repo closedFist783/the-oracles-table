@@ -94,6 +94,9 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
   const [background, setBackground] = useState('')
   const [name, setName] = useState('')
   const [backstory, setBackstory] = useState('')
+  const [appearance, setAppearance] = useState('')
+  const [portrait, setPortrait] = useState('') // URL
+  const [portraitLoading, setPortraitLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -124,6 +127,38 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
     setGenningBs(false)
   }
 
+  async function generateAppearance() {
+    try {
+      const ai = new Anthropic({ apiKey: import.meta.env.VITE_ANTHROPIC_KEY, dangerouslyAllowBrowser: true })
+      const msg = await ai.messages.create({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 120,
+        messages: [{ role: 'user', content: `Write a vivid 2-sentence physical description of a ${race} ${cls} D&D character named ${name || 'the hero'}. Focus on distinctive appearance: hair, eyes, build, notable features, gear. No backstory. Just what you'd see looking at them.` }],
+      })
+      setAppearance(msg.content[0].text.trim())
+    } catch { setError('Could not generate appearance.') }
+  }
+
+  async function generatePortrait() {
+    if (!appearance.trim()) return
+    setPortraitLoading(true)
+    setPortrait('')
+    try {
+      const raceMap = { Human:'human', Elf:'elf', Dwarf:'dwarf', Halfling:'halfling', Dragonborn:'dragonborn', Gnome:'gnome', 'Half-Elf':'half-elf', 'Half-Orc':'half-orc', Tiefling:'tiefling with horns and tail' }
+      const raceTerm = raceMap[race] || race.toLowerCase()
+      const prompt = `fantasy portrait headshot of a ${raceTerm} ${cls.toLowerCase()}, ${appearance}, dramatic lighting, detailed face, painterly style, digital art, award winning illustration, dark background`.replace(/\s+/g,' ').trim()
+      const encoded = encodeURIComponent(prompt)
+      const url = `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&model=flux&nologo=true&seed=${Math.floor(Math.random()*99999)}`
+      // Preload to confirm it loaded
+      await new Promise((res, rej) => {
+        const img = new Image()
+        img.onload = res; img.onerror = rej
+        img.src = url
+      })
+      setPortrait(url)
+    } catch { setError('Could not generate portrait. Try again.') }
+    setPortraitLoading(false)
+  }
+
   // Stat pools
   const [statPool, setStatPool] = useState([]) // unassigned scores
   const [assigned, setAssigned] = useState([null, null, null, null, null, null]) // per stat slot
@@ -137,7 +172,7 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
   // Tap-to-select state (works on mobile + desktop)
   const [selected, setSelected] = useState(null) // null | { value, source:'pool'|'stat', idx }
 
-  const steps = ['Race', 'Class', 'Background', 'Stats', 'Details']
+  const steps = ['Race', 'Class', 'Background', 'Stats', 'Details', 'Portrait']
   const statsValid = assigned.every(v => v !== null)
 
   // ── Roll ──────────────────────────────────────────────────────────────────
@@ -222,6 +257,8 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
       user_id: session.user.id,
       name: name.trim(), race, class: cls, background, level: 1, backstory,
       max_hp: Math.max(1, maxHp), current_hp: Math.max(1, maxHp), xp: 0,
+      appearance: appearance.trim() || null,
+      portrait_url: portrait || null,
     }
     STAT_KEYS.forEach((k, i) => { charData[k] = assigned[i] ?? 10 })
     const { error: err } = await supabase.from('characters').insert(charData)
@@ -498,10 +535,76 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
           </div>
           <div className="creator-nav">
             <button className="btn btn-ghost" onClick={() => setStep(3)}>← Back</button>
-            <button className="btn btn-gold" disabled={!name.trim() || saving} onClick={handleSave}>
+            <button className="btn btn-gold" disabled={!name.trim()} onClick={() => setStep(5)}>
+              Next →
+            </button>
+          </div>
+        </>)}
+
+        {/* ── Step 5: Portrait ── */}
+        {step === 5 && (<>
+          <h3 style={{ marginBottom: '4px' }}>Character Portrait</h3>
+          <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem', marginBottom: '16px' }}>
+            Describe your character's appearance — then we'll paint them.
+          </p>
+
+          <div style={{ marginBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label className="form-label" style={{ margin: 0 }}>Appearance</label>
+              <button className="btn btn-ghost btn-sm" onClick={generateAppearance} style={{ fontSize: '0.72rem' }}>
+                ✨ Generate
+              </button>
+            </div>
+            <textarea className="form-textarea" value={appearance} onChange={e => setAppearance(e.target.value)}
+              placeholder="Describe your character's look — hair, eyes, build, scars, gear…" rows={3} />
+          </div>
+
+          {/* Portrait preview + generate */}
+          <div style={{ marginBottom: '16px' }}>
+            {portrait ? (
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                <img src={portrait} alt="Character portrait"
+                  style={{ width: '140px', height: '140px', objectFit: 'cover', borderRadius: '12px',
+                    border: '2px solid var(--gold)', boxShadow: '0 0 20px rgba(201,168,76,0.3)' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#5d9', marginBottom: '8px' }}>✓ Portrait generated!</div>
+                  <button className="btn btn-ghost btn-sm" onClick={generatePortrait} disabled={!appearance.trim() || portraitLoading}
+                    style={{ fontSize: '0.72rem' }}>
+                    🎨 Regenerate
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="btn btn-gold" onClick={generatePortrait}
+                disabled={!appearance.trim() || portraitLoading}
+                style={{ width: '100%' }}>
+                {portraitLoading ? (
+                  <span>🎨 Painting your portrait…</span>
+                ) : (
+                  <span>🎨 Generate AI Portrait</span>
+                )}
+              </button>
+            )}
+            {portraitLoading && (
+              <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.78rem', marginTop: '8px' }}>
+                This takes about 10–20 seconds…
+              </div>
+            )}
+          </div>
+
+          <div className="creator-nav">
+            <button className="btn btn-ghost" onClick={() => setStep(4)}>← Back</button>
+            <button className="btn btn-gold" disabled={saving} onClick={handleSave}>
               {saving ? 'Creating...' : '⚔️ Create Hero'}
             </button>
           </div>
+          {!portrait && (
+            <div style={{ textAlign: 'center', marginTop: '8px' }}>
+              <button className="btn btn-ghost btn-sm" style={{ fontSize: '0.72rem', opacity: 0.6 }} onClick={handleSave} disabled={saving}>
+                Skip portrait →
+              </button>
+            </div>
+          )}
         </>)}
 
       </div>

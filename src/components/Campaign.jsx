@@ -1174,9 +1174,22 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
           {/* ── Stats Tab ───────────────────────────────────────────── */}
           {sideTab === 'stats' && (<>
             {/* Character header — always visible */}
-            <p className="sidebar-char-name">{character.name}</p>
-            <p className="sidebar-char-meta">Level {character.level} {character.race} {character.class}</p>
-            <p className="sidebar-char-bg">{character.background}</p>
+            {character.portrait_url ? (
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
+                <img src={character.portrait_url} alt={character.name}
+                  style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '10px',
+                    border: '2px solid var(--gold)', boxShadow: '0 0 14px rgba(201,168,76,0.35)', flexShrink: 0 }} />
+                <div>
+                  <p className="sidebar-char-name" style={{ margin: '0 0 2px' }}>{character.name}</p>
+                  <p className="sidebar-char-meta" style={{ margin: '0 0 2px' }}>Level {character.level} {character.race} {character.class}</p>
+                  <p className="sidebar-char-bg" style={{ margin: 0 }}>{character.background}</p>
+                </div>
+              </div>
+            ) : (<>
+              <p className="sidebar-char-name">{character.name}</p>
+              <p className="sidebar-char-meta">Level {character.level} {character.race} {character.class}</p>
+              <p className="sidebar-char-bg">{character.background}</p>
+            </>)}
 
             {/* HP bar — always visible */}
             {character.max_hp > 0 && (() => {

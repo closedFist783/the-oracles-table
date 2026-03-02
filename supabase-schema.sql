@@ -136,3 +136,7 @@ create policy "Users manage own inventory" on inventory for all
 insert into public.profiles (id, coins, character_slots)
   values ('0b5648d4-110b-4edf-8728-e7bd0868255d', 100000, 100000)
   on conflict (id) do update set coins = 100000, character_slots = 100000;
+
+-- Portrait & appearance (added for character creator portrait step)
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS appearance TEXT;
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS portrait_url TEXT;
