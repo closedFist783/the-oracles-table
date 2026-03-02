@@ -166,7 +166,7 @@ export default function Upgrade({ session, profile, onBack }) {
           },
           {
             key: 'sub_archmage', tier: 'archmage', name: 'Archmage', price: '$15.99/mo', icon: '🔮',
-            perks: ['1,000 coins / month', '5 base character slots', '2 new character slots / month', 'Priority GM quality'],
+            perks: ['1,000 coins / month', '5 base character slots', '2 new character slots / month', 'Priority storytelling quality', '⚡ Auto-assign stats to ideal positions for your class'],
             badge: '💎 Best Value',
           },
         ].map(p => {

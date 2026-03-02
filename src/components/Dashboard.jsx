@@ -110,7 +110,7 @@ export default function Dashboard({ session, profile, onCreateChar, onPlayCampai
             <div style={{ fontSize: '2.8rem', marginBottom: '12px' }}>🎲</div>
             <h2 style={{ marginBottom: '10px', fontSize: '1.5rem' }}>Welcome to The Oracle's Table!</h2>
             <p style={{ color: 'var(--text-dim)', lineHeight: '1.6', maxWidth: '480px', margin: '0 auto 20px', fontSize: '0.95rem' }}>
-              Your AI-powered Dungeon Master awaits — craft a hero, step into a living world, and let the story unfold with every choice you make.
+              Your solo D&amp;D adventure awaits — craft a hero, step into a living world, and let the story unfold with every choice you make.
               Every adventure is unique, shaped entirely by you.
             </p>
             {/* 3-step visual */}

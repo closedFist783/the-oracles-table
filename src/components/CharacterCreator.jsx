@@ -545,7 +545,7 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
               </div>
             )}
             <textarea className="form-textarea" value={backstory} onChange={e => setBackstory(e.target.value)}
-              placeholder="Where do you come from? What drives you? The GM will weave this into your adventure..." rows={3} />
+              placeholder="Where do you come from? What drives you? This will be woven into your adventure..." rows={3} />
           </div>
 
           <div style={{ background: 'var(--surface2)', borderRadius: 'var(--radius)', padding: '12px', fontSize: '0.82rem', color: 'var(--text-dim)', marginBottom: '4px' }}>
