@@ -20,7 +20,8 @@ export function xpForNextLevel(level) { return XP_THRESHOLDS[Math.min(level, 19)
 export function xpProgress(xp, level) {
   const cur = XP_THRESHOLDS[level - 1] ?? 0
   const nxt = XP_THRESHOLDS[level] ?? XP_THRESHOLDS[19]
-  return Math.min(1, (xp - cur) / (nxt - cur))
+  const pct = Math.min(100, Math.max(0, ((xp - cur) / (nxt - cur)) * 100))
+  return { current: Math.max(0, xp - cur), needed: nxt - cur, pct }
 }
 
 // ── Spell slot tables by class level ─────────────────────────────────────────
