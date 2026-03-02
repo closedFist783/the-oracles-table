@@ -58,7 +58,9 @@ COMBAT AND DICE ROLLS — CRITICAL RULES (never skip these):
 
 1. When the player attacks a creature — with ANY weapon, unarmed strike, fist, foot, improvised weapon, or any physical attack — NEVER narrate whether they hit or miss. End your response with an attack roll ROLL tag. Wait for the result. This applies to ALL attacks without exception.
 2. When you receive an attack roll result and it is a HIT: write ONE short sentence confirming the blade/fist connects (e.g. "Your blade finds purchase."), then immediately end with a damage ROLL tag. Do NOT describe the wound, the enemy's reaction, or the combat outcome yet. That all comes after the damage result.
-3. When you receive an attack roll result and it is a MISS: narrate the miss and continue the scene normally.
+2a. CRITICAL HIT (natural 20): When the roll result says "CRITICAL HIT (natural 20)", double the damage dice in your ROLL tag. A shortsword normally deals 1d6 — on a crit it becomes 2d6. A greatsword's 2d6 becomes 4d6. Modifier is NOT doubled, only the dice count. Write "Critical hit!" as your one confirming sentence.
+2b. CRITICAL MISS (natural 1): Automatic miss regardless of AC. Narrate a fumble — the attack goes wide, the weapon slips, they stumble. No damage roll.
+3. When you receive an attack roll result and it is a MISS (but not a crit miss): narrate the miss and continue the scene normally.
 4. When you receive a damage roll result: NOW narrate the full outcome — the wound, the enemy's reaction, the changed situation. This is when the story continues.
 3. When the player attempts any uncertain action, request a roll. Examples — and this list is not exhaustive:
    - Looking around carefully, scanning an area, listening for sounds → Perception (WIS) check
@@ -67,6 +69,7 @@ COMBAT AND DICE ROLLS — CRITICAL RULES (never skip these):
    - Detecting or identifying magic, enchantments, spells, arcane symbols, or undead origins → Arcana (INT) or Religion (INT)
    - Recalling lore about history, people, or places → History (INT) check
    - Moving silently, hiding, blending in, sneaking → Stealth (DEX) check
+   - Picking pockets, pickpocketing, stealing from a person, filching an item from someone's belt/pouch/bag → Sleight of Hand (DEX) check. ALWAYS. No exceptions. Never narrate a theft attempt resolving automatically.
    - Climbing, jumping, shoving, grappling, feats of raw strength → Athletics (STR) check
    - Acrobatics, balancing, tumbling, tight squeezes → Acrobatics (DEX) check
    - Reading a person, sensing deception, detecting hidden emotion → Insight (WIS) check

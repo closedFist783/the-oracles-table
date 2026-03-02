@@ -440,7 +440,16 @@ function RollCard({ roll, character, onRolled, riggedRoll }) {
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)', lineHeight: 1.6 }}>
             <div>{result.rolls.join('+')} = {result.sum} {bonus >= 0 ? '+' : ''}{bonus}</div>
-
+            {result.rolls.length === 1 && result.rolls[0] === 20 && (
+              <div style={{ color:'#ffd700', fontWeight:'bold', fontSize:'0.85rem', textShadow:'0 0 8px #ffd700', animation:'goldPulse 1s ease-in-out infinite' }}>
+                ⭐ CRITICAL HIT!
+              </div>
+            )}
+            {result.rolls.length === 1 && result.rolls[0] === 1 && (
+              <div style={{ color:'var(--red)', fontWeight:'bold', fontSize:'0.85rem' }}>
+                💀 CRITICAL MISS
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1011,15 +1020,29 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     const label    = roll.label ?? roll.type
     const bonusStr = bonus >= 0 ? `+${bonus}` : `${bonus}`
     const statName = roll.stat ? (STAT_FULL[roll.stat] ?? roll.stat) : ''
+
+    // Detect natural 20 on d20 rolls
+    const isD20    = (roll.dice ?? '1d20') === '1d20' || roll.type === 'attack' || roll.type === 'check' || roll.type === 'save'
+    const rawDie   = rolls?.[0] ?? 0
+    const isCrit   = isD20 && rawDie === 20
+    const isFumble = isD20 && rawDie === 1
+
     let resultMsg
     if (roll.type === 'attack') {
-      // For attacks GM needs AC to determine hit — still include AC in result
-      resultMsg = `[Roll Result: ${label} — 1d20${bonusStr} = ${total} vs AC ${roll.dc}]`
+      if (isCrit) {
+        // Critical hit: tell GM to double the damage dice
+        resultMsg = `[Roll Result: ${label} — 1d20${bonusStr} = ${total} — CRITICAL HIT (natural 20)! Double damage dice on the next damage roll.]`
+      } else if (isFumble) {
+        resultMsg = `[Roll Result: ${label} — 1d20${bonusStr} = ${total} — CRITICAL MISS (natural 1)! Automatic miss regardless of AC.]`
+      } else {
+        resultMsg = `[Roll Result: ${label} — 1d20${bonusStr} = ${total} vs AC ${roll.dc}]`
+      }
     } else if (roll.type === 'damage') {
       resultMsg = `[Roll Result: ${label} — ${roll.dice}${bonusStr} = ${total} damage]`
     } else {
-      // Check/save: just report total — GM determines outcome from tiers
-      resultMsg = `[Roll Result: ${label}${statName ? ` (${statName})` : ''} — ${roll.dice}${bonusStr} = ${total}]`
+      if (isCrit)   resultMsg = `[Roll Result: ${label}${statName ? ` (${statName})` : ''} — ${roll.dice}${bonusStr} = ${total} — Natural 20! Exceptional success.]`
+      else if (isFumble) resultMsg = `[Roll Result: ${label}${statName ? ` (${statName})` : ''} — ${roll.dice}${bonusStr} = ${total} — Natural 1! Critical failure.]`
+      else          resultMsg = `[Roll Result: ${label}${statName ? ` (${statName})` : ''} — ${roll.dice}${bonusStr} = ${total}]`
     }
     await submitTurn(resultMsg, true)
   }
