@@ -172,7 +172,7 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
   // Tap-to-select state (works on mobile + desktop)
   const [selected, setSelected] = useState(null) // null | { value, source:'pool'|'stat', idx }
 
-  const steps = ['Race', 'Class', 'Background', 'Stats', 'Details', 'Portrait']
+  const steps = ['Race', 'Class', 'Background', 'Stats', 'Details']
   const statsValid = assigned.every(v => v !== null)
 
   // ── Roll ──────────────────────────────────────────────────────────────────
@@ -250,15 +250,31 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
   async function handleSave() {
     if (!name.trim()) { setError('Give your hero a name.'); return }
     setSaving(true); setError('')
-    const conMod = Math.floor(((assigned[2] ?? 10) - 10) / 2) // CON is slot index 2
+    const conMod = Math.floor(((assigned[2] ?? 10) - 10) / 2)
     const hitDie = HIT_DICE[cls] ?? 8
     const maxHp  = hitDie + conMod
+
+    // Auto-generate portrait from appearance if provided
+    let portraitUrl = null
+    if (appearance.trim()) {
+      try {
+        const raceMap = { Human:'human', Elf:'elf', Dwarf:'dwarf', Halfling:'halfling', Dragonborn:'dragonborn', Gnome:'gnome', 'Half-Elf':'half-elf', 'Half-Orc':'half-orc', Tiefling:'tiefling with horns and tail' }
+        const raceTerm = raceMap[race] || race.toLowerCase()
+        const prompt = `fantasy portrait headshot of a ${raceTerm} ${cls.toLowerCase()}, ${appearance.trim()}, dramatic lighting, detailed face, painterly style, digital art, dark background`
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&model=flux&nologo=true&seed=${Math.floor(Math.random()*99999)}`
+        await new Promise((res) => {
+          const img = new Image(); img.onload = res; img.onerror = res; img.src = url
+        })
+        portraitUrl = url
+      } catch { /* portrait optional — don't block save */ }
+    }
+
     const charData = {
       user_id: session.user.id,
       name: name.trim(), race, class: cls, background, level: 1, backstory,
       max_hp: Math.max(1, maxHp), current_hp: Math.max(1, maxHp), xp: 0,
       appearance: appearance.trim() || null,
-      portrait_url: portrait || null,
+      portrait_url: portraitUrl,
     }
     STAT_KEYS.forEach((k, i) => { charData[k] = assigned[i] ?? 10 })
     const { error: err } = await supabase.from('characters').insert(charData)
@@ -478,10 +494,12 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
           </div>
         </>)}
 
-        {/* ── Step 4: Name + backstory ── */}
+        {/* ── Step 4: Name + description + backstory ── */}
         {step === 4 && (<>
           <h3 style={{ marginBottom: '16px' }}>Name Your Hero</h3>
           {error && <div className="auth-error" style={{ marginBottom: '12px' }}>{error}</div>}
+
+          {/* Name */}
           <div className="form-group">
             <label className="form-label">Character Name</label>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -493,6 +511,15 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
               </button>
             </div>
           </div>
+
+          {/* Appearance description */}
+          <div className="form-group">
+            <label className="form-label">Appearance <span style={{ color: 'var(--text-dim)' }}>(optional — used to generate your portrait)</span></label>
+            <textarea className="form-textarea" value={appearance} onChange={e => setAppearance(e.target.value)}
+              placeholder="Describe what your character looks like — hair, eyes, build, scars, notable features…" rows={2} />
+          </div>
+
+          {/* Backstory */}
           <div className="form-group">
             <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Backstory <span style={{ color: 'var(--text-dim)' }}>(optional)</span></span>
@@ -504,16 +531,12 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
             {showBsGen && (
               <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px', marginBottom: '8px' }}>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginBottom: '8px' }}>
-                  Add keywords or a short description — or leave blank for a random backstory.
+                  Add keywords or leave blank for a random backstory.
                 </p>
-                <textarea
-                  className="form-textarea"
-                  rows={2}
-                  value={bsKeywords}
+                <textarea className="form-textarea" rows={2} value={bsKeywords}
                   onChange={e => setBsKeywords(e.target.value)}
                   placeholder="e.g. grew up in the mountains, lost family to bandits, seeks revenge..."
-                  style={{ marginBottom: '8px', fontSize: '0.82rem' }}
-                />
+                  style={{ marginBottom: '8px', fontSize: '0.82rem' }} />
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button className="btn btn-gold btn-sm" type="button" disabled={genningBs} onClick={generateBackstory}>
                     {genningBs ? '✨ Writing...' : '✨ Generate'}
@@ -525,8 +548,9 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
               </div>
             )}
             <textarea className="form-textarea" value={backstory} onChange={e => setBackstory(e.target.value)}
-              placeholder="Where do you come from? What drives you? The GM will weave this into your adventure..." rows={4} />
+              placeholder="Where do you come from? What drives you? The GM will weave this into your adventure..." rows={3} />
           </div>
+
           <div style={{ background: 'var(--surface2)', borderRadius: 'var(--radius)', padding: '12px', fontSize: '0.82rem', color: 'var(--text-dim)', marginBottom: '4px' }}>
             <strong style={{ color: 'var(--gold)' }}>{name || '(unnamed)'}</strong>
             {' · '}Level 1 {race} {cls} · {background}
@@ -535,77 +559,33 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
           </div>
           <div className="creator-nav">
             <button className="btn btn-ghost" onClick={() => setStep(3)}>← Back</button>
-            <button className="btn btn-gold" disabled={!name.trim()} onClick={() => setStep(5)}>
-              Next →
+            <button className="btn btn-gold" disabled={!name.trim() || saving} onClick={handleSave}>
+              {saving ? 'Creating your hero…' : '⚔️ Create Hero'}
             </button>
           </div>
         </>)}
 
-        {/* ── Step 5: Portrait ── */}
-        {step === 5 && (<>
-          <h3 style={{ marginBottom: '4px' }}>Character Portrait</h3>
-          <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem', marginBottom: '16px' }}>
-            Describe your character's appearance — then we'll paint them.
-          </p>
-
-          <div style={{ marginBottom: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label className="form-label" style={{ margin: 0 }}>Appearance</label>
-              <button className="btn btn-ghost btn-sm" onClick={generateAppearance} style={{ fontSize: '0.72rem' }}>
-                ✨ Generate
-              </button>
-            </div>
-            <textarea className="form-textarea" value={appearance} onChange={e => setAppearance(e.target.value)}
-              placeholder="Describe your character's look — hair, eyes, build, scars, gear…" rows={3} />
-          </div>
-
-          {/* Portrait preview + generate */}
-          <div style={{ marginBottom: '16px' }}>
-            {portrait ? (
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                <img src={portrait} alt="Character portrait"
-                  style={{ width: '140px', height: '140px', objectFit: 'cover', borderRadius: '12px',
-                    border: '2px solid var(--gold)', boxShadow: '0 0 20px rgba(201,168,76,0.3)' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.78rem', color: '#5d9', marginBottom: '8px' }}>✓ Portrait generated!</div>
-                  <button className="btn btn-ghost btn-sm" onClick={generatePortrait} disabled={!appearance.trim() || portraitLoading}
-                    style={{ fontSize: '0.72rem' }}>
-                    🎨 Regenerate
-                  </button>
-                </div>
+        {/* ── Saving overlay ── */}
+        {saving && (
+          <div style={{ position:'fixed', inset:0, zIndex:9999, background:'radial-gradient(ellipse at center,#1a1200 0%,#0b0b10 100%)',
+            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'24px' }}>
+            <style>{`
+              @keyframes portraitSpin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+              @keyframes portraitFade { 0%,100%{opacity:0.4} 50%{opacity:1} }
+            `}</style>
+            <div style={{ width:'80px', height:'80px', borderRadius:'50%', border:'3px solid transparent',
+              borderTopColor:'var(--gold)', borderRightColor:'var(--gold-dim)',
+              animation:'portraitSpin 1s linear infinite' }} />
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:'1.1rem', fontWeight:'bold', color:'var(--gold)', marginBottom:'6px' }}>
+                Forging your legend…
               </div>
-            ) : (
-              <button className="btn btn-gold" onClick={generatePortrait}
-                disabled={!appearance.trim() || portraitLoading}
-                style={{ width: '100%' }}>
-                {portraitLoading ? (
-                  <span>🎨 Painting your portrait…</span>
-                ) : (
-                  <span>🎨 Generate AI Portrait</span>
-                )}
-              </button>
-            )}
-            {portraitLoading && (
-              <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.78rem', marginTop: '8px' }}>
-                This takes about 10–20 seconds…
+              <div style={{ fontSize:'0.82rem', color:'var(--text-dim)', animation:'portraitFade 2s ease-in-out infinite' }}>
+                {appearance.trim() ? 'Painting your portrait…' : 'Saving your character…'}
               </div>
-            )}
-          </div>
-
-          <div className="creator-nav">
-            <button className="btn btn-ghost" onClick={() => setStep(4)}>← Back</button>
-            <button className="btn btn-gold" disabled={saving} onClick={handleSave}>
-              {saving ? 'Creating...' : '⚔️ Create Hero'}
-            </button>
-          </div>
-          {!portrait && (
-            <div style={{ textAlign: 'center', marginTop: '8px' }}>
-              <button className="btn btn-ghost btn-sm" style={{ fontSize: '0.72rem', opacity: 0.6 }} onClick={handleSave} disabled={saving}>
-                Skip portrait →
-              </button>
             </div>
-          )}
-        </>)}
+          </div>
+        )}
 
       </div>
     </div>
