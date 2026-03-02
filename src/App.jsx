@@ -121,8 +121,8 @@ export default function App() {
       <nav className="topbar">
         <span className="topbar-title" style={{ cursor: 'pointer' }} onClick={() => setView('dashboard')}>⚔️ The Oracle's Table</span>
         <div className="topbar-nav">
-          {profile && <span className="topbar-coins">🪙 {profile.coins} coins</span>}
-          <button className="btn btn-ghost btn-sm" onClick={() => setView('dashboard')}>Characters</button>
+          {profile && <span className="topbar-coins">🪙 {profile.coins}</span>}
+          <button className="btn btn-ghost btn-sm topbar-hide-mobile" onClick={() => setView('dashboard')}>Characters</button>
           <button className="btn btn-ghost btn-sm" onClick={() => setView('upgrade')}>Upgrade</button>
           <button className="btn btn-ghost btn-sm" onClick={() => setView('profile')}
             title="Profile" style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '20px' }}>
@@ -140,11 +140,11 @@ export default function App() {
                     )
                   })()
             }
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-mid)', maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span className="topbar-username">
               {profile?.username || (session?.user?.email?.split('@')[0] ?? '')}
             </span>
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => supabase.auth.signOut()}>Sign Out</button>
+          <button className="btn btn-ghost btn-sm topbar-hide-mobile" onClick={() => supabase.auth.signOut()}>Sign Out</button>
         </div>
       </nav>
 

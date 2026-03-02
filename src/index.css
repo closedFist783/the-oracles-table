@@ -58,6 +58,7 @@ h1, h2, h3 {
   letter-spacing: 0.04em;
 }
 .topbar-nav { display: flex; gap: 8px; align-items: center; }
+.topbar-username { font-size: 0.78rem; color: var(--text-dim); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-coins {
   color: var(--gold); font-size: 0.85rem; margin-right: 12px;
   padding: 3px 10px; border-radius: 20px;
@@ -709,11 +710,13 @@ h1, h2, h3 {
 /* ── Responsive / Mobile ──────────────────────────────────────── */
 @media (max-width: 768px) {
   /* Topbar */
-  .topbar { padding: 0 12px; gap: 8px; flex-wrap: wrap; min-height: 52px; }
-  .topbar-title { font-size: 1rem; }
+  .topbar { padding: 0 12px; height: 48px; }
+  .topbar-title { font-size: 0.95rem; }
   .topbar-nav { gap: 6px; }
-  .topbar-nav .btn-sm { font-size: 0.7rem; padding: 4px 8px; }
-  .topbar-coins { font-size: 0.8rem; }
+  .topbar-nav .btn-sm { font-size: 0.72rem; padding: 4px 8px; }
+  .topbar-coins { font-size: 0.78rem; padding: 2px 8px; margin-right: 4px; }
+  .topbar-hide-mobile { display: none !important; }
+  .topbar-username { display: none; }
 
   /* Main layout */
   .main { padding: 8px; }
