@@ -14,8 +14,8 @@ const PRICES = {
   shards_3:   { priceId: 'price_1T6ORjJTVSSOOaY3web7V7xV',  mode: 'payment',      meta: { product_type: 'shards', shards: '3'   } },
   shards_6:   { priceId: 'price_1T6OSVJTVSSOOaY332OLJMN5',  mode: 'payment',      meta: { product_type: 'shards', shards: '6'   } },
   // Subscriptions (recurring prices in Stripe)
-  sub_wanderer:   { priceId: 'price_1T4w9rCZ0RoZVqTwGqT75Fil', mode: 'subscription', meta: { product_type: 'subscription', tier: 'wanderer',   coins: '200' } },
-  sub_adventurer: { priceId: 'price_1T4wAWCZ0RoZVqTw2O4yoAnl', mode: 'subscription', meta: { product_type: 'subscription', tier: 'adventurer', coins: '450' } },
+  sub_wanderer:   { priceId: 'price_1T6OYIJTVSSOOaY3xXNzV5z2', mode: 'subscription', meta: { product_type: 'subscription', tier: 'wanderer',   coins: '200' } },
+  sub_adventurer: { priceId: 'price_1T6OZvJTVSSOOaY3qUTtIQQc', mode: 'subscription', meta: { product_type: 'subscription', tier: 'adventurer', coins: '450' } },
   sub_archmage:   { priceId: 'price_1T4wBFCZ0RoZVqTwijF7pa66', mode: 'subscription', meta: { product_type: 'subscription', tier: 'archmage',   coins: '1000'} },
 }
 
@@ -165,7 +165,7 @@ export default function Upgrade({ session, profile, onBack }) {
             featured: true, badge: '🔥 Most Popular',
           },
           {
-            key: 'sub_archmage', tier: 'archmage', name: 'Archmage', price: '$15.00/mo', icon: '🔮',
+            key: 'sub_archmage', tier: 'archmage', name: 'Archmage', price: '$15.99/mo', icon: '🔮',
             perks: ['1,000 coins / month', '5 base character slots', '2 new character slots / month', 'Priority GM quality'],
             badge: '💎 Best Value',
           },
