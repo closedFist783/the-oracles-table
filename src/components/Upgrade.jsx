@@ -16,7 +16,7 @@ const PRICES = {
   // Subscriptions (recurring prices in Stripe)
   sub_wanderer:   { priceId: 'price_1T6OYIJTVSSOOaY3xXNzV5z2', mode: 'subscription', meta: { product_type: 'subscription', tier: 'wanderer',   coins: '200' } },
   sub_adventurer: { priceId: 'price_1T6OZvJTVSSOOaY3qUTtIQQc', mode: 'subscription', meta: { product_type: 'subscription', tier: 'adventurer', coins: '450' } },
-  sub_archmage:   { priceId: 'price_1T4wBFCZ0RoZVqTwijF7pa66', mode: 'subscription', meta: { product_type: 'subscription', tier: 'archmage',   coins: '1000'} },
+  sub_archmage:   { priceId: 'price_1T6ObjJTVSSOOaY3bFFFH8A3', mode: 'subscription', meta: { product_type: 'subscription', tier: 'archmage',   coins: '1000'} },
 }
 
 const TIER_ORDER = ['none', 'wanderer', 'adventurer', 'archmage']
