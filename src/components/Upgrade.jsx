@@ -12,7 +12,7 @@ const PRICES = {
   // One-time shard packs
   shards_1:   { priceId: 'price_1T6OPQJTVSSOOaY3iVnFp2gX',  mode: 'payment',      meta: { product_type: 'shards', shards: '1'   } },
   shards_3:   { priceId: 'price_1T6ORjJTVSSOOaY3web7V7xV',  mode: 'payment',      meta: { product_type: 'shards', shards: '3'   } },
-  shards_6:   { priceId: 'price_1T4w9GCZ0RoZVqTwaK39XWjD',  mode: 'payment',      meta: { product_type: 'shards', shards: '6'   } },
+  shards_6:   { priceId: 'price_1T6OSVJTVSSOOaY332OLJMN5',  mode: 'payment',      meta: { product_type: 'shards', shards: '6'   } },
   // Subscriptions (recurring prices in Stripe)
   sub_wanderer:   { priceId: 'price_1T4w9rCZ0RoZVqTwGqT75Fil', mode: 'subscription', meta: { product_type: 'subscription', tier: 'wanderer',   coins: '200' } },
   sub_adventurer: { priceId: 'price_1T4wAWCZ0RoZVqTw2O4yoAnl', mode: 'subscription', meta: { product_type: 'subscription', tier: 'adventurer', coins: '450' } },
