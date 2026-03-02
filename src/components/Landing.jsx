@@ -64,6 +64,7 @@ export default function Landing({ onSignIn, onSignUp }) {
       </section>
 
       <footer className="landing-footer">
+        <button className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem', opacity: 0.6 }} onClick={() => window.open('/privacy.html', '_blank')}>Privacy Policy</button>
         <button className="btn btn-ghost btn-sm" onClick={onSignIn}>Sign In</button>
       </footer>
     </div>
