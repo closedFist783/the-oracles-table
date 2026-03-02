@@ -159,16 +159,16 @@ export default function Upgrade({ session, profile, onBack }) {
         {[
           {
             key: 'sub_wanderer', tier: 'wanderer', name: 'Wanderer', price: '$4.99/mo', icon: '🌙',
-            perks: ['200 coins / month', '2 character slots', 'Rollover up to 100 coins'],
+            perks: ['200 coins / month', '2 base character slots', ],
           },
           {
             key: 'sub_adventurer', tier: 'adventurer', name: 'Adventurer', price: '$7.99/mo', icon: '⚔️',
-            perks: ['450 coins / month', '3 character slots', '1 new character slot / month', 'Rollover up to 200 coins'],
+            perks: ['450 coins / month', '3 base character slots', '1 new character slot / month', ],
             featured: true, badge: '🔥 Most Popular',
           },
           {
-            key: 'sub_archmage', tier: 'archmage', name: 'Archmage', price: '$12.99/mo', icon: '🔮',
-            perks: ['1,000 coins / month', '5 character slots', '2 new character slots / month', 'Unlimited coin rollover', 'Priority GM quality'],
+            key: 'sub_archmage', tier: 'archmage', name: 'Archmage', price: '$15.00/mo', icon: '🔮',
+            perks: ['1,000 coins / month', '5 base character slots', '2 new character slots / month', 'Priority GM quality'],
             badge: '💎 Best Value',
           },
         ].map(p => {

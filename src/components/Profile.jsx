@@ -189,6 +189,28 @@ export default function Profile({ user, profile, onProfileUpdate, onBack }) {
               {(profile?.character_slots ?? 1)} slots · {(profile?.coins ?? 0).toLocaleString()} coins
             </span>
           </div>
+          {/* Slot breakdown */}
+          {(() => {
+            const BASE_SLOTS = { none:1, wanderer:2, adventurer:3, archmage:5 }
+            const totalSlots = profile?.character_slots ?? 1
+            const baseSlots  = BASE_SLOTS[profile?.subscription_tier ?? 'none'] ?? 1
+            const extraSlots = Math.max(0, totalSlots - baseSlots)
+            return (
+              <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginTop:'6px' }}>
+                <span style={{ fontSize:'0.72rem', background:'var(--surface2)', borderRadius:'6px', padding:'3px 10px', color:'var(--text-dim)' }}>
+                  🏠 {baseSlots} base slot{baseSlots !== 1 ? 's' : ''}
+                </span>
+                {extraSlots > 0 && (
+                  <span style={{ fontSize:'0.72rem', background:'rgba(201,168,76,0.1)', border:'1px solid var(--gold-dim)', borderRadius:'6px', padding:'3px 10px', color:'var(--gold)' }}>
+                    💎 +{extraSlots} additional slot{extraSlots !== 1 ? 's' : ''}
+                  </span>
+                )}
+                <span style={{ fontSize:'0.72rem', background:'var(--surface2)', borderRadius:'6px', padding:'3px 10px', color:'var(--text)' }}>
+                  {totalSlots} total
+                </span>
+              </div>
+            )
+          })()}
         </div>
       </div>
 
