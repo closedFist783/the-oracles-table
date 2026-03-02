@@ -30,19 +30,20 @@ serve(async (req) => {
 
     if (!response.ok) {
       const err = await response.text()
-      return new Response(JSON.stringify({ error: err }), {
-        status: response.status,
+      return new Response(JSON.stringify({ error: `Anthropic ${response.status}: ${err}` }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
     const data = await response.json()
     return new Response(JSON.stringify({ text: data.content[0].text }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: String(err) }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
