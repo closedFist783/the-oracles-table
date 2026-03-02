@@ -8,6 +8,7 @@ export default function Auth({ defaultTab = 'login', onBack }) {
   const [error, setError]   = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone]     = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -75,8 +76,15 @@ export default function Auth({ defaultTab = 'login', onBack }) {
             </div>
             <div className="form-group">
               <label className="form-label">Password</label>
-              <input className="form-input" type="password" value={password}
-                onChange={e => setPassword(e.target.value)} required minLength={6} />
+              <div style={{ position: 'relative' }}>
+                <input className="form-input" type={showPassword ? 'text' : 'password'} value={password}
+                  onChange={e => setPassword(e.target.value)} required minLength={6}
+                  style={{ paddingRight: '44px', width: '100%', boxSizing: 'border-box' }} />
+                <button type="button" onClick={() => setShowPassword(v => !v)}
+                  style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: '1rem', padding: '0', lineHeight: 1 }}>
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
             <button className="btn btn-gold" style={{ width: '100%' }} disabled={loading}>
               {loading ? 'Working...' : tab === 'login' ? 'Enter the Realm' : 'Begin Your Journey'}
