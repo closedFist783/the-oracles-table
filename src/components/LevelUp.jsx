@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { CLASS_LEVELS, HIT_DICE, SUBCLASSES, spellSlots, profBonus } from '../lib/classes'
+import { CLASS_LEVELS, HIT_DICE, SUBCLASSES, SUBCLASS_DESCRIPTIONS, FIGHTING_STYLE_DESCS, FEATS, spellSlots, profBonus } from '../lib/classes'
 
 const STAT_NAMES = ['STR','DEX','CON','INT','WIS','CHA']
 const STAT_KEYS  = ['str_stat','dex_stat','con_stat','int_stat','wis_stat','cha_stat']
@@ -350,48 +350,73 @@ export default function LevelUp({ character, newLevel, remaining = 1, onComplete
                 </div>
               )}
 
-              {/* Feat input */}
-              {(asiMode === 'feat' || allMaxed) && (
-                <div>
-                  <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem', marginBottom: '10px' }}>
-                    Name your feat. It'll be added to your Abilities tab — the GM will honor it in play.
-                  </p>
-                  <input
-                    autoFocus
-                    value={featName}
-                    onChange={e => setFeatName(e.target.value)}
-                    placeholder="e.g. Sharpshooter, War Caster, Lucky…"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius)', fontSize: '0.9rem',
-                      background: 'var(--surface)', border: '2px solid var(--gold-dim)', color: 'var(--text)',
-                      outline: 'none', boxSizing: 'border-box' }}
-                  />
-                  {featName.trim() && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '6px' }}>
-                      ✓ "{featName.trim()}" will be added to your Abilities
+              {/* Feat picker */}
+              {(asiMode === 'feat' || allMaxed) && (() => {
+                const available = FEATS.filter(f => !f.prereqFn || f.prereqFn(character))
+                const unavailable = FEATS.filter(f => f.prereqFn && !f.prereqFn(character))
+                return (
+                  <div>
+                    <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem', marginBottom: '10px' }}>
+                      Choose a feat — it'll be added to your Abilities tab and honored in play.
+                    </p>
+                    <div style={{ maxHeight: '42vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '4px' }}>
+                      {available.map(f => {
+                        const isSel = featName === f.name
+                        return (
+                          <button key={f.name} onClick={() => setFeatName(f.name)}
+                            style={{ padding: '10px 14px', textAlign: 'left', borderRadius: 'var(--radius)', cursor: 'pointer',
+                              background: isSel ? 'rgba(201,168,76,0.12)' : 'var(--surface)',
+                              border: `2px solid ${isSel ? 'var(--gold)' : 'var(--border)'}`,
+                              transition: 'all 0.12s' }}>
+                            <div style={{ fontWeight: 'bold', color: isSel ? 'var(--gold)' : 'var(--text)', marginBottom: '3px', fontSize: '0.9rem' }}>{f.name}</div>
+                            <div style={{ fontSize: '0.77rem', color: isSel ? 'var(--text)' : 'var(--text-dim)', lineHeight: 1.4 }}>{f.desc}</div>
+                          </button>
+                        )
+                      })}
+                      {unavailable.length > 0 && (<>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', padding: '8px 4px 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          Requires prerequisites
+                        </div>
+                        {unavailable.map(f => (
+                          <div key={f.name} style={{ padding: '10px 14px', borderRadius: 'var(--radius)', opacity: 0.45,
+                            background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                            <div style={{ fontWeight: 'bold', color: 'var(--text)', marginBottom: '3px', fontSize: '0.9rem' }}>{f.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '3px' }}>{f.desc}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--gold-dim)', fontStyle: 'italic' }}>Requires: {f.prereq}</div>
+                          </div>
+                        ))}
+                      </>)}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
           {/* Subclass */}
           {currentChoice.type === 'subclass' && (
             <div>
-              <h3 style={{ marginBottom: '6px' }}>Choose Your Subclass</h3>
-              <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem', marginBottom: '16px' }}>
+              <h3 style={{ marginBottom: '4px' }}>Choose Your Subclass</h3>
+              <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem', marginBottom: '14px' }}>
                 This choice shapes your abilities for the rest of your career.
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {(SUBCLASSES[cls] || []).map(opt => (
-                  <button key={opt} onClick={() => setPicked(opt)}
-                    style={{ padding: '12px 16px', textAlign: 'left', borderRadius: 'var(--radius)', cursor: 'pointer',
-                      background: picked === opt ? 'rgba(201,168,76,0.15)' : 'var(--surface)',
-                      border: `2px solid ${picked === opt ? 'var(--gold)' : 'var(--border)'}`,
-                      color: picked === opt ? 'var(--gold)' : 'var(--text)', fontWeight: picked === opt ? 'bold' : 'normal' }}>
-                    {opt}
-                  </button>
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '55vh', overflowY: 'auto', paddingRight: '4px' }}>
+                {(SUBCLASSES[cls] || []).map(opt => {
+                  const isSelected = picked === opt
+                  const desc = SUBCLASS_DESCRIPTIONS[opt]
+                  return (
+                    <button key={opt} onClick={() => setPicked(opt)}
+                      style={{ padding: '12px 16px', textAlign: 'left', borderRadius: 'var(--radius)', cursor: 'pointer',
+                        background: isSelected ? 'rgba(201,168,76,0.12)' : 'var(--surface)',
+                        border: `2px solid ${isSelected ? 'var(--gold)' : 'var(--border)'}`,
+                        transition: 'all 0.15s' }}>
+                      <div style={{ fontWeight: 'bold', color: isSelected ? 'var(--gold)' : 'var(--text)', marginBottom: desc ? '4px' : 0 }}>
+                        {opt}
+                      </div>
+                      {desc && <div style={{ fontSize: '0.78rem', color: isSelected ? 'var(--text)' : 'var(--text-dim)', lineHeight: 1.4 }}>{desc}</div>}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -399,17 +424,27 @@ export default function LevelUp({ character, newLevel, remaining = 1, onComplete
           {/* Fighting Style */}
           {currentChoice.type === 'fighting_style' && (
             <div>
-              <h3 style={{ marginBottom: '6px' }}>Choose a Fighting Style</h3>
+              <h3 style={{ marginBottom: '4px' }}>Choose a Fighting Style</h3>
+              <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem', marginBottom: '14px' }}>
+                A permanent specialty that shapes your combat approach.
+              </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {(currentChoice.options || []).map(opt => (
-                  <button key={opt} onClick={() => setPicked(opt)}
-                    style={{ padding: '12px 16px', textAlign: 'left', borderRadius: 'var(--radius)', cursor: 'pointer',
-                      background: picked === opt ? 'rgba(201,168,76,0.15)' : 'var(--surface)',
-                      border: `2px solid ${picked === opt ? 'var(--gold)' : 'var(--border)'}`,
-                      color: picked === opt ? 'var(--gold)' : 'var(--text)', fontWeight: picked === opt ? 'bold' : 'normal' }}>
-                    {opt}
-                  </button>
-                ))}
+                {(currentChoice.options || []).map(opt => {
+                  const isSelected = picked === opt
+                  // Name is before the first '(' or '+'
+                  const name = opt.split(/\s*[\(+]/)[0].trim()
+                  const desc = FIGHTING_STYLE_DESCS[opt] || opt
+                  return (
+                    <button key={opt} onClick={() => setPicked(opt)}
+                      style={{ padding: '12px 16px', textAlign: 'left', borderRadius: 'var(--radius)', cursor: 'pointer',
+                        background: isSelected ? 'rgba(201,168,76,0.12)' : 'var(--surface)',
+                        border: `2px solid ${isSelected ? 'var(--gold)' : 'var(--border)'}`,
+                        transition: 'all 0.15s' }}>
+                      <div style={{ fontWeight: 'bold', color: isSelected ? 'var(--gold)' : 'var(--text)', marginBottom: '4px' }}>{name}</div>
+                      <div style={{ fontSize: '0.78rem', color: isSelected ? 'var(--text)' : 'var(--text-dim)', lineHeight: 1.4 }}>{desc}</div>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}

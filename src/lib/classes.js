@@ -394,3 +394,144 @@ export function getAllFeaturesUpToLevel(cls, level) {
   }
   return all
 }
+
+// ── Subclass descriptions ─────────────────────────────────────────────────────
+export const SUBCLASS_DESCRIPTIONS = {
+  // Barbarian
+  'Path of the Berserker':        'Go into a frenzy when you rage — make a bonus melee attack each turn, but suffer exhaustion afterward. Pure offense.',
+  'Path of the Totem Warrior':    'Bond with an animal spirit (Bear, Eagle, or Wolf) for powerful passive benefits to yourself and your allies.',
+  'Path of the Ancestral Guardian':'Your rage calls forth ancestral spirits that protect your allies by imposing disadvantage on enemies who attack anyone but you.',
+  'Path of the Storm Herald':     'Your rage creates an aura of elemental energy (arctic, desert, or sea) that damages or buffs nearby creatures.',
+  // Bard
+  'College of Lore':   'Master of arcane secrets. Extra skills, magical Cutting Words to debuff enemies, and access to spells from any class list at level 6.',
+  'College of Valor':  'A warrior-poet. Medium armor, shields, martial weapons, and the ability to grant allies extra attacks through your inspiration.',
+  'College of Glamour':'Fey-touched charmer. Captivating Presence lets you charm crowds; Mantle of Majesty lets you command with bonus action.',
+  'College of Swords': 'Blade-slinging duelist. Use your instrument as a weapon, spend Bardic Inspiration to pull off flourishes that deal extra damage.',
+  // Cleric
+  'Life Domain':     'The healer. Disciple of Life makes all healing spells more effective. Heavy armor, bonus heals, and a powerful Preserve Life channel.',
+  'Light Domain':    'Radiant blaster. Warding Flare blinds attackers. Corona of Light eventually blinds all undead and fiends near you.',
+  'Trickery Domain': 'Deceptive divine. Create duplicates of yourself, grant invisibility, and boost the Stealth and Deception of allies.',
+  'War Domain':      'Divine warrior. Extra attacks, war priest martial prowess, and channel divinity to boost attack rolls. Heavy armor proficiency.',
+  'Knowledge Domain':'Scholar of the gods. Temporarily gain any skill proficiency, read minds, and eventually become a master of secrets.',
+  'Nature Domain':   'The druid priest. Animal friendship, heavy armor, and channel divinity to charm beasts and plants.',
+  'Tempest Domain':  'Storm caller. Thunderwave and lightning strike enemies for max damage; push them with destructive wrath. Heavy armor.',
+  // Druid
+  'Circle of the Land': 'Mystical land-bond. Recover spell slots on short rests, gain bonus spells based on terrain, and resist exhaustion and charm.',
+  'Circle of the Moon': 'Fearsome shapeshifter. Wild Shape into powerful combat beasts (CR up to your level ÷ 3) and even elementals at level 10.',
+  'Circle of the Shepherd':'Guardian of beasts. Summon spirit guardians to boost summoned creatures; your summoned beasts deal more damage.',
+  'Circle of Spores':   'Animate the dead with fungal growth. Halo of Spores damages nearby enemies; Symbiotic Entity temporarily boosts HP and damage.',
+  // Fighter
+  'Champion':          'Raw athleticism. Critical hits on 19-20, superior physical abilities, and an extra fighting style at level 10. Simple and brutal.',
+  'Battle Master':     'Tactical genius. Maneuvers (Trip Attack, Precision, Riposte, etc.) with superiority dice to control and debuff enemies.',
+  'Eldritch Knight':   'Sword and sorcery. Learn Abjuration and Evocation spells; bind a weapon to your hand; eventually cast spells as a bonus action.',
+  'Arcane Archer':     'Magical marksman. Arcing shots, curving shots, and special arrow types (Banishing, Bursting, Grasping, Seeking) with your bow.',
+  'Cavalier':          'Mounted protector. Mark and punish enemies who attack your allies; excel in defense and mounted combat.',
+  'Echo Knight':       'Manifest a shadow echo of yourself to attack from, teleport to, and use as a second set of eyes.',
+  // Monk
+  'Way of the Open Hand':      'Pure martial arts. Flurry of Blows can knock enemies prone, push them, or prevent reactions. Eventual immunity to disease, poison, and charm.',
+  'Way of Shadow':             'Ninja-style. Teleport between shadows, cast darkness and silence with ki, become invisible in dim light.',
+  'Way of the Four Elements':  'Elemental bender. Spend ki to cast fire, water, earth, and air spells like Burning Hands and Wall of Water.',
+  'Way of the Drunken Master': 'Unpredictable brawler. Your erratic stumbling style makes you hard to hit and lets you disengage and re-engage freely.',
+  'Way of the Kensei':         'Weapon master monk. Use any weapon as a monk weapon, empower your strikes, and fire ki-infused arrows.',
+  // Paladin
+  'Oath of Devotion':   'The classic holy knight. Sacred Weapon glows and gets a bonus to hit; Holy Nimbus radiates sunlight that burns undead.',
+  'Oath of the Ancients':'Nature-bonded knight. Aura of Warding protects against spells; Undying Sentinel keeps you on your feet when dropped to 0 HP.',
+  'Oath of Vengeance':  'Relentless avenger. Vow of Enmity grants advantage on one target; Aura of Hate boosts your damage with CHA.',
+  'Oath of Conquest':   'Tyrant paladin. Fear enemies, slow them, and gain bonus psychic damage from your smites.',
+  'Oath of Redemption': 'Pacifist protector. Absorb damage dealt to nearby allies onto yourself; persuade enemies to surrender rather than fight.',
+  // Ranger
+  'Hunter':        'Versatile predator. Choose your specialty: Colossus Slayer (damage), Giant Killer (reactions), or Horde Breaker (crowd control).',
+  'Beast Master':  'Bond with an animal companion that fights with you. The beast uses your bonus action and scales with your level.',
+  'Gloom Stalker': 'Dungeon stalker. Invisible to darkvision; extra attack on first turn of combat; terrify enemies if they miss you.',
+  'Horizon Walker':'Planar guardian. Deal force damage, teleport in combat, and eventually step between planes.',
+  'Monster Slayer':'Expert hunter. Study a creature to reveal its vulnerabilities; resist its spells and counterattack when it casts.',
+  // Rogue
+  'Thief':            'Pure larceny. Faster Hands for bonus action item use, use magic items without requirements, and climb like a spider.',
+  'Assassin':         'Lethal ambusher. Advantage on attacks against creatures who haven\'t acted; auto-crit surprised targets; forge identities.',
+  'Arcane Trickster': 'Magical pickpocket. Learn Illusion and Enchantment spells; steal spells from casters; distract enemies with your familiar.',
+  'Inquisitive':      'Detective rogue. Unerring Eye spots hidden things; Ear for Deceit detects lies; Insightful Fighting gets Sneak Attack without allies.',
+  'Mastermind':       'Puppet master. Help allies from 30 ft away; use disguise and forgery; read enemies\' tactics in combat.',
+  'Scout':            'Skirmisher. Avoid opportunity attacks at will; act before nearly everyone in the first round; get expertise in Nature and Survival.',
+  'Swashbuckler':     'Charming duelist. Sneak Attack without allies (just you and one target); disengage as a bonus action; charm with Panache.',
+  // Sorcerer
+  'Draconic Bloodline':'Dragon ancestry. Natural armor (AC 13+DEX), wings at level 14, and bonus damage on spells matching your dragon type.',
+  'Wild Magic':        'Chaos incarnate. Surge of unpredictable magic effects; bend luck to give allies advantage; eventually reroll surges.',
+  'Divine Soul':       'Angelic touch. Access the full Cleric spell list on top of Sorcerer spells; sprout wings; resist magical death.',
+  'Shadow Magic':      'Shadow-born. Summon a Hound of Ill Omen; see in darkness; resist death once per day; become a shadow.',
+  'Storm Sorcery':     'Stormborn. +10 ft fly speed when casting; move through enemies with Tempestuous Magic; resist lightning and thunder.',
+  // Warlock
+  'The Fiend':        'Pact with a devil. Dark One\'s Blessing grants temp HP on kills; you get powerful Fiend spells and eventually fire immunity.',
+  'The Great Old One':'Pact with an alien entity. Telepathy, detect thoughts, and eventually dominate minds. Alien flavor throughout.',
+  'The Archfey':      'Pact with a fey lord. Beguile and frighten enemies; teleport when hit; eventually charm anyone who attacks you.',
+  'The Celestial':    'Angelic patron. Healing Touch lets you heal with Warlock slots; gain Cleric and Druid healing spells on your list.',
+  'The Hexblade':     'Pact with a sentient weapon. CHA to attack/damage with your pact weapon; Hexblade\'s Curse adds prof bonus to damage and crits on 19.',
+  // Wizard
+  'School of Evocation':    'Blast specialist. Sculpt spells to protect allies in AOEs; empowered evocation adds INT mod to damage; reliable crits.',
+  'School of Abjuration':   'Ward master. Arcane Ward absorbs damage for you; Project Ward transfers it to allies; eventual spell immunity.',
+  'School of Conjuration':  'Summoner. Minor Conjuration creates small objects; Benign Transposition teleports you or a summon; focus fire summoned creatures.',
+  'School of Divination':   'Fortune-teller. Portent lets you roll dice at the start of each day and swap them for anyone\'s rolls. Extremely powerful.',
+  'School of Enchantment':  'Mind-bender. Hypnotic Gaze stuns, Split Enchantment doubles charm spells, Alter Memories makes targets forget your magic.',
+  'School of Illusion':     'Illusionist. Malleable Illusions change your illusions mid-scene; Illusory Self creates a decoy when hit; Illusory Reality makes one part real.',
+  'School of Necromancy':   'Undead commander. Grim Harvest regains HP when you kill; raise up to 5+2×WIS undead minions; make them stronger.',
+  'School of Transmutation':'Shapeshifter scholar. Minor Alchemy transforms materials; Transmuter\'s Stone grants passive buffs; Shapechanger turns you into a beast.',
+}
+
+// ── Fighting style descriptions ───────────────────────────────────────────────
+export const FIGHTING_STYLE_DESCS = {
+  'Archery (+2 ranged attack rolls)':                        '+2 to all ranged weapon attack rolls. The best choice for archers and crossbow users.',
+  'Defense (+1 AC while armored)':                           '+1 AC whenever you\'re wearing any armor. A passive bonus to survivability no matter your playstyle.',
+  'Dueling (+2 damage with one-handed weapon)':              '+2 damage when wielding a one-handed weapon with your other hand free (no shield required).',
+  'Great Weapon Fighting (reroll 1s and 2s on two-handed damage)': 'Reroll 1s and 2s on damage dice when using a two-handed or versatile weapon two-handed. Must keep the new roll.',
+  'Protection (impose disadvantage on attacks against allies)':'Reaction: impose disadvantage on one attack roll against an ally within 5 ft. Requires a shield.',
+  'Two-Weapon Fighting (add ability modifier to off-hand attacks)': 'Add your STR or DEX modifier to off-hand attack damage. Normally off-hand attacks don\'t get this bonus.',
+}
+
+// ── D&D 5e Feat list ──────────────────────────────────────────────────────────
+// prereqFn(character) → true if character meets prerequisites
+const isCaster = c => ['Bard','Cleric','Druid','Paladin','Ranger','Sorcerer','Warlock','Wizard'].includes(c.class)
+const hasHeavyArmor = c => ['Fighter','Paladin'].includes(c.class) || (c.class === 'Cleric')
+
+export const FEATS = [
+  { name:'Alert',            desc:'+5 to initiative. You can\'t be surprised while conscious. Other creatures don\'t gain advantage on attack rolls against you as a result of being hidden from you.' },
+  { name:'Athlete',          desc:'+1 STR or DEX. Standing up from prone costs only 5 ft of movement. Climbing doesn\'t halve your speed. Running long jump requires only 5 ft run-up.' },
+  { name:'Actor',            desc:'+1 CHA. Advantage on Deception and Performance when pretending to be someone else. Mimic speech or sounds of creatures you\'ve heard (DC 15 Insight to detect).' },
+  { name:'Charger',          desc:'When you Dash as an action, you can make one melee weapon attack or shove as a bonus action. +5 damage if you moved 10+ ft in a straight line.' },
+  { name:'Crossbow Expert',  desc:'Ignore loading on crossbows. No disadvantage on ranged attacks while in melee. When you attack with a one-handed weapon, bonus action hand crossbow attack.' },
+  { name:'Defensive Duelist',desc:'+1 DEX. When hit by a melee attack while wielding a finesse weapon, use your reaction to add your proficiency bonus to AC for that attack.', prereq:'DEX 13+', prereqFn: c => (c.dex_stat??10) >= 13 },
+  { name:'Dual Wielder',     desc:'+1 AC while wielding two melee weapons. Use any one-handed melee weapon for two-weapon fighting (not just light). Draw or stow two weapons at once.' },
+  { name:'Dungeon Delver',   desc:'Advantage on Perception and Investigation to detect secret doors. Advantage on saves vs traps. Resistance to trap damage. Search for traps at normal pace.' },
+  { name:'Durable',          desc:'+1 CON. When you roll a Hit Die to recover HP on a short rest, the minimum HP you regain equals twice your CON modifier (minimum 2).' },
+  { name:'Elemental Adept',  desc:'Choose a damage type (acid, cold, fire, lightning, or thunder). Your spells ignore resistance to that type. Treat 1s on damage dice as 2s for that type.', prereq:'Spellcasting ability', prereqFn: isCaster },
+  { name:'Grappler',         desc:'Advantage on attacks against creatures you\'re grappling. As an action, try to restrain a grappled creature (both of you become restrained).', prereq:'STR 13+', prereqFn: c => (c.str_stat??10) >= 13 },
+  { name:'Great Weapon Master', desc:'When you score a critical hit or reduce a creature to 0 HP with a melee weapon, make one melee weapon attack as a bonus action. Before attacking with a heavy weapon, take -5 to hit for +10 damage.' },
+  { name:'Healer',           desc:'Use a healer\'s kit to stabilize a creature and restore 1 HP. As an action, restore 1d6 + 4 + creature\'s max hit dice HP (once per short rest per creature).' },
+  { name:'Heavily Armored',  desc:'+1 STR. Gain proficiency with heavy armor.', prereq:'Medium armor proficiency', prereqFn: c => ['Fighter','Paladin','Cleric','Ranger'].includes(c.class) },
+  { name:'Heavy Armor Master',desc:'+1 STR. While wearing heavy armor, reduce non-magical bludgeoning, piercing, and slashing damage by 3.', prereq:'Heavy armor proficiency', prereqFn: hasHeavyArmor },
+  { name:'Inspiring Leader', desc:'After a 10-minute speech, grant up to 6 allies temp HP equal to your level + CHA modifier. Must understand you.', prereq:'CHA 13+', prereqFn: c => (c.cha_stat??10) >= 13 },
+  { name:'Keen Mind',        desc:'+1 INT. Always know which direction is north. Always know how many hours until sunrise or sunset. Recall anything you\'ve seen or heard in the past month.' },
+  { name:'Lightly Armored',  desc:'+1 STR or DEX. Gain proficiency with light armor.' },
+  { name:'Linguist',         desc:'+1 INT. Learn 3 languages of your choice. Create ciphers. Others need an INT check (DC = your INT score) to decode your writing.' },
+  { name:'Lucky',            desc:'3 luck points per long rest. Spend one to roll an extra d20 on any attack, ability check, or save and choose which roll to use. Or force a reroll against you.' },
+  { name:'Mage Slayer',      desc:'When a creature within 5 ft casts a spell, use your reaction to make a melee attack against them. Target has disadvantage on concentration saves from your damage. Advantage on saves vs nearby spells.' },
+  { name:'Magic Initiate',   desc:'Choose a class. Learn 2 cantrips from that class\'s spell list. Learn 1 1st-level spell from that list, castable once per long rest (using that class\'s ability).' },
+  { name:'Martial Adept',    desc:'Learn 2 maneuvers from the Battle Master archetype. Gain 1 superiority die (d6) to fuel them. Recharges on short rest.' },
+  { name:'Medium Armor Master',desc:'Wearing medium armor doesn\'t impose disadvantage on Stealth. Maximum DEX bonus to AC in medium armor increases from +2 to +3.', prereq:'Medium armor proficiency' },
+  { name:'Mobile',           desc:'+10 ft movement speed. When you Dash, difficult terrain doesn\'t cost extra movement. When you make a melee attack, you don\'t provoke opportunity attacks from that target for the rest of the turn.' },
+  { name:'Moderately Armored',desc:'+1 STR or DEX. Gain proficiency with medium armor and shields.', prereq:'Light armor proficiency' },
+  { name:'Mounted Combatant',desc:'Advantage on melee attacks vs unmounted creatures smaller than your mount. Force attacks targeting your mount to target you instead. Mount makes DEX saves with advantage.' },
+  { name:'Observant',        desc:'+1 INT or WIS. Read lips. +5 to passive Perception and passive Investigation scores.' },
+  { name:'Polearm Master',   desc:'After taking the Attack action with a polearm, bonus action butt-end attack (1d4 bludgeoning). Opportunity attacks when creatures enter your reach.' },
+  { name:'Resilient',        desc:'+1 to a chosen ability score. Gain proficiency in saving throws using that ability.' },
+  { name:'Ritual Caster',    desc:'Acquire a ritual book with two 1st-level rituals. Add rituals of any level you can cast. Cast rituals without expending spell slots (takes 10 extra minutes).', prereq:'INT or WIS 13+' },
+  { name:'Savage Attacker',  desc:'Once per turn when you roll damage for a melee weapon attack, reroll the damage dice and use either result.' },
+  { name:'Sentinel',         desc:'When you hit with an opportunity attack, the creature\'s speed drops to 0. Creatures provoke opportunity attacks from you even after Disengaging. React to attack creatures that attack your allies.' },
+  { name:'Sharpshooter',     desc:'No disadvantage at long range. Ranged attacks ignore half cover and three-quarters cover. Before attacking, take -5 to hit for +10 damage.' },
+  { name:'Shield Master',    desc:'Shove as a bonus action after the Attack action. Add your shield\'s AC bonus to DEX saves vs single-target effects. On a successful DEX save vs half damage, take none instead.' },
+  { name:'Skilled',          desc:'Gain proficiency in any combination of 3 skills or tools of your choice.' },
+  { name:'Skulker',          desc:'Hide when only lightly obscured. Missing with a ranged attack doesn\'t reveal your position. No disadvantage on Perception in dim light.', prereq:'DEX 13+', prereqFn: c => (c.dex_stat??10) >= 13 },
+  { name:'Spell Sniper',     desc:'Double the range of spells requiring an attack roll. Spells ignore half cover and three-quarters cover. Learn 1 attack cantrip from any class.', prereq:'Spellcasting ability', prereqFn: isCaster },
+  { name:'Tavern Brawler',   desc:'+1 STR or CON. Proficiency with improvised weapons. Unarmed strikes deal 1d4. When you hit with an unarmed strike or improvised weapon, bonus action grapple attempt.' },
+  { name:'Tough',            desc:'HP maximum increases by 2 for each level you have and will have. (Retroactive — you gain 2 HP per level you\'ve already earned.)' },
+  { name:'War Caster',       desc:'Advantage on CON saves to maintain concentration. Perform somatic components with hands full of weapons or shield. Cast a spell (instead of melee) as an opportunity attack.', prereq:'Spellcasting ability', prereqFn: isCaster },
+  { name:'Weapon Master',    desc:'+1 STR or DEX. Gain proficiency with 4 weapons of your choice.' },
+]
