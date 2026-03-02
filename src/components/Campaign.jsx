@@ -763,6 +763,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
   const [messages, setMessages]       = useState([])
   const [pendingRoll, setPendingRoll] = useState(null)
   const [pendingRest, setPendingRest] = useState(false)
+  const [lastRoll, setLastRoll]       = useState(null) // for reroll feature
   const [npcs, setNpcs]               = useState([])
   const [quests, setQuests]           = useState([])
   const [inventory, setInventory]     = useState([])
@@ -1320,6 +1321,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
 
   // Called after player clicks Roll in the RollCard
   async function handleRollResult({ rolls, sum, bonus, total, roll }) {
+    setLastRoll(roll)
     setPendingRoll(null)
     const label    = roll.label ?? roll.type
     const bonusStr = bonus >= 0 ? `+${bonus}` : `${bonus}`
@@ -1390,7 +1392,73 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     await submitTurn(text, false)
   }
 
+  async function deleteLastDBMessages(n) {
+    const { data } = await supabase
+      .from('campaign_messages').select('id')
+      .eq('campaign_id', campaign.id)
+      .order('created_at', { ascending: false }).limit(n)
+    if (data?.length) await supabase.from('campaign_messages').delete().in('id', data.map(m => m.id))
+  }
+
+  async function handleRegenerate() {
+    if (typing || coins < 1 || pendingRoll || pendingRest) return
+    const lastGM = [...messages].reverse().find(m => m.role === 'assistant')
+    if (!lastGM) return
+    setError('')
+    setTyping(true)
+    try {
+      const newCoins = coins - 1
+      await supabase.from('profiles').update({ coins: newCoins }).eq('id', session.user.id)
+      setCoins(newCoins); onCoinsChanged()
+      await deleteLastDBMessages(1)
+      const msgsWithoutLastGM = messages.filter(m => m.id !== lastGM.id)
+      setMessages(msgsWithoutLastGM)
+      const gmRaw = await sendToGM(msgsWithoutLastGM, character, { tier: profile?.subscription_tier, persona: gmPersona })
+      const { roll, npcs: newNpcs, removeNpcs: deadNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems, restPrompt, conditionAdds, conditionRemoves } = parseGMMessage(gmRaw)
+      await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'assistant', content: gmRaw })
+      setMessages(prev => [...prev, { id: 'gm-' + Date.now(), role: 'assistant', content: gmRaw, campaign_id: campaign.id, created_at: new Date().toISOString() }])
+      if (roll) setPendingRoll(roll)
+      upsertNpcs(newNpcs).catch(() => {}); deleteNpcs(deadNpcs).catch(() => {})
+      upsertQuests(newQuests, completedQuests).catch(() => {})
+      if (xpAward) awardXP(xpAward).catch(() => {})
+      if (hpUpdate) applyHP(hpUpdate).catch(() => {})
+      if (acUpdate) applyAC(acUpdate).catch(() => {})
+      upsertInventoryItems(newItems).catch(() => {}); removeInventoryItems(removeItems).catch(() => {})
+      if (restPrompt) setPendingRest(true)
+      for (const name of conditionAdds) addCondition(name).catch(() => {})
+      for (const name of conditionRemoves) removeCondition(name).catch(() => {})
+    } catch (e) {
+      setError(e.message || 'Regenerate failed.')
+    } finally {
+      setTyping(false)
+    }
+  }
+
+  async function handleReroll() {
+    if (typing || coins < 2 || !lastRoll || pendingRoll || pendingRest) return
+    setError('')
+    try {
+      const newCoins = coins - 2
+      await supabase.from('profiles').update({ coins: newCoins }).eq('id', session.user.id)
+      setCoins(newCoins); onCoinsChanged()
+      // Remove last GM message + last user roll result from DB and state
+      await deleteLastDBMessages(2)
+      const lastGMIdx  = [...messages].map(m => m.role).lastIndexOf('assistant')
+      const lastUserIdx = [...messages].map(m => m.role).lastIndexOf('user')
+      const toRemove = new Set()
+      if (lastGMIdx  !== -1) toRemove.add(messages[lastGMIdx].id)
+      if (lastUserIdx !== -1) toRemove.add(messages[lastUserIdx].id)
+      setMessages(prev => prev.filter(m => !toRemove.has(m.id)))
+      const rollToReuse = lastRoll
+      setLastRoll(null)
+      setPendingRoll(rollToReuse)
+    } catch (e) {
+      setError(e.message || 'Reroll failed.')
+    }
+  }
+
   async function submitTurn(userText, isRollResult) {
+    if (!isRollResult) setLastRoll(null)
     setError('')
     const userMsg = {
       id: 'tmp-' + Date.now(), role: 'user', content: userText,
@@ -2034,10 +2102,24 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
               }
               if (m.role === 'assistant') {
                 const { text } = parseGMMessage(m.content)
+                const isLastGM = m.id === [...messages].reverse().find(x => x.role === 'assistant')?.id
+                const canRegen = isLastGM && !typing && !pendingRoll && !pendingRest && !pendingLevelUp && coins >= 1
                 return (
                   <div key={m.id} className="message-gm">
                     <div className="msg-label">🎲 Dungeon Master</div>
                     <div className="msg-body">{renderMarkdown(text)}</div>
+                    {canRegen && (
+                      <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button onClick={handleRegenerate} className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                          🔄 Regenerate <span style={{ color: 'var(--gold)', marginLeft: '4px' }}>1🪙</span>
+                        </button>
+                        {lastRoll && coins >= 2 && (
+                          <button onClick={handleReroll} className="btn btn-ghost btn-sm" style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                            🎲 Reroll <span style={{ color: 'var(--gold)', marginLeft: '4px' }}>2🪙</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               }
