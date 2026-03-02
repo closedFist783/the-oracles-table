@@ -1,11 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
-
-const anthropic = new Anthropic({
-  apiKey: import.meta.env.VITE_ANTHROPIC_KEY,
-  dangerouslyAllowBrowser: true, // MVP only — move to edge function before launch
-})
-
-const MODEL = 'claude-haiku-4-5-20251001'
+import { supabase } from './supabase'
 
 // ── Context window limits per subscription tier ───────────────────────────────
 const TIER_CONTEXT = { none: 12, wanderer: 20, adventurer: 30, archmage: 50 }
@@ -205,12 +198,10 @@ export async function sendToGM(messages, character, { tier = 'none', persona = '
     ? filtered
     : [{ role: 'user', content: 'Begin the adventure.' }]
 
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 1800,
-    system,
-    messages: payload,
+  const { data, error } = await supabase.functions.invoke('gm-chat', {
+    body: { messages: payload, system, max_tokens: 1800 },
   })
 
-  return response.content[0].text
+  if (error) throw error
+  return data.text
 }

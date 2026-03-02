@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { randomName } from '../lib/names'
-import Anthropic from '@anthropic-ai/sdk'
 
 const RACES = [
   { name: 'Human',      desc: 'Versatile and ambitious' },
@@ -108,17 +107,16 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
   async function generateBackstory() {
     setGenningBs(true)
     try {
-      const ai = new Anthropic({ apiKey: import.meta.env.VITE_ANTHROPIC_KEY, dangerouslyAllowBrowser: true })
       const seed = bsKeywords.trim()
       const prompt = seed
         ? `Write a short (3-4 sentence) D&D backstory for a level 1 ${race} ${cls} with the background of "${background}". Incorporate these elements: ${seed}. Write in second person ("You were born..."). Be evocative but concise.`
         : `Write a short (3-4 sentence) D&D backstory for a level 1 ${race} ${cls} with the background of "${background}". Write in second person ("You were born..."). Be evocative but concise.`
-      const msg = await ai.messages.create({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 300,
-        messages: [{ role: 'user', content: prompt }],
+      const { data: bsData, error: bsErr } = await supabase.functions.invoke('gm-chat', {
+        body: { messages: [{ role: 'user', content: prompt }], max_tokens: 300 },
       })
+      if (bsErr) throw bsErr
       // Strip any leading markdown heading (e.g. "# A Shadowed Beginning\n")
-      setBackstory(msg.content[0].text.trim().replace(/^#+\s+[^\n]+\n+/, ''))
+      setBackstory(bsData.text.trim().replace(/^#+\s+[^\n]+\n+/, ''))
       setShowBsGen(false)
       setBsKeywords('')
     } catch (e) {
@@ -129,12 +127,11 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
 
   async function generateAppearance() {
     try {
-      const ai = new Anthropic({ apiKey: import.meta.env.VITE_ANTHROPIC_KEY, dangerouslyAllowBrowser: true })
-      const msg = await ai.messages.create({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 120,
-        messages: [{ role: 'user', content: `Write a vivid 2-sentence physical description of a ${race} ${cls} D&D character named ${name || 'the hero'}. Focus on distinctive appearance: hair, eyes, build, notable features, gear. No backstory. Just what you'd see looking at them.` }],
+      const { data: apData, error: apErr } = await supabase.functions.invoke('gm-chat', {
+        body: { messages: [{ role: 'user', content: `Write a vivid 2-sentence physical description of a ${race} ${cls} D&D character named ${name || 'the hero'}. Focus on distinctive appearance: hair, eyes, build, notable features, gear. No backstory. Just what you'd see looking at them.` }], max_tokens: 120 },
       })
-      setAppearance(msg.content[0].text.trim())
+      if (apErr) throw apErr
+      setAppearance(apData.text.trim())
     } catch { setError('Could not generate appearance.') }
   }
 
