@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { CLASS_LEVELS, HIT_DICE, SUBCLASSES, SUBCLASS_DESCRIPTIONS, FIGHTING_STYLE_DESCS, FEATS, spellSlots, profBonus } from '../lib/classes'
+import { playLevelUp } from '../lib/sounds'
 
 const STAT_NAMES = ['STR','DEX','CON','INT','WIS','CHA']
 const STAT_KEYS  = ['str_stat','dex_stat','con_stat','int_stat','wis_stat','cha_stat']
@@ -90,7 +91,7 @@ export default function LevelUp({ character, newLevel, remaining = 1, onComplete
   const [hpGain, setHpGain]   = useState(null)
   const [rolledHp, setRolledHp] = useState(false)
 
-  useEffect(() => { setTimeout(() => setPhase('features'), 1800) }, [])
+  useEffect(() => { playLevelUp(); setTimeout(() => setPhase('features'), 1800) }, [])
 
   const currentChoice = choices[choiceIdx]
 

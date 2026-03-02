@@ -1247,6 +1247,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     let resultMsg
     if (roll.type === 'attack') {
       if (isCrit) {
+        playCritical()
         // Critical hit: tell GM to double the damage dice
         resultMsg = `[Roll Result: ${label} — 1d20${bonusStr} = ${total} — CRITICAL HIT (natural 20)! Double damage dice on the next damage roll.]`
       } else if (isFumble) {
@@ -1379,8 +1380,21 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-        <button className="btn btn-ghost btn-sm" onClick={onBack}>← Back</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => { playButtonClick(); onBack() }}>← Back</button>
         <h2 style={{ margin: 0, textShadow: '0 0 16px var(--gold-glow)', flex: 1 }}>{campaign.title}</h2>
+        {/* Player identity */}
+        {(() => {
+          const displayName = profile?.username || (session?.user?.email?.split('@')[0] ?? '')
+          const initials = displayName.slice(0, 2).toUpperCase()
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', color: 'var(--gold)', fontWeight: 'bold', flexShrink: 0 }}>
+                {initials}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</span>
+            </div>
+          )
+        })()}
         {isDevUser && (
           <button
             className={`btn btn-sm ${debugMode ? 'btn-danger' : 'btn-ghost'}`}
@@ -1980,7 +1994,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
               <div className="send-col">
                 {pendingLevelUp
                   ? <button className="btn btn-gold btn-sm" onClick={() => setShowLevelUp(true)} style={{ animation: 'pulse 1.5s infinite', whiteSpace:'nowrap' }}>⬆ Level Up!</button>
-                  : <button className="btn btn-gold btn-sm" onClick={send} disabled={!canSend}>Send</button>
+                  : <button className="btn btn-gold btn-sm" onClick={() => { playButtonClick(); send() }} disabled={!canSend}>Send</button>
                 }
                 <span className="coins-cost">🪙 1 coin</span>
               </div>
