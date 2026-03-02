@@ -6,9 +6,9 @@ import { supabase } from '../lib/supabase'
 const PRICES = {
   // One-time coin packs
   coins_50:   { priceId: 'price_1T6NV2JTVSSOOaY3keqjaFxF', mode: 'payment', meta: { product_type: 'coins',  coins: '50'   } },
-  coins_150:  { priceId: 'price_1T4w7CCZ0RoZVqTwmRc9myzh',   mode: 'payment',      meta: { product_type: 'coins',  coins: '150'  } },
-  coins_400:  { priceId: 'price_1T4w7WCZ0RoZVqTwyRfm43wm',  mode: 'payment',      meta: { product_type: 'coins',  coins: '400'  } },
-  coins_1000: { priceId: 'price_1T4w7rCZ0RoZVqTwP0RPpCQE',   mode: 'payment',      meta: { product_type: 'coins',  coins: '1000' } },
+  coins_150:  { priceId: 'price_1T6OBmJTVSSOOaY37ya8Ad0M', mode: 'payment', meta: { product_type: 'coins', coins: '150'  } },
+  coins_400:  { priceId: 'price_1T6ODjJTVSSOOaY3leBVuKOR', mode: 'payment', meta: { product_type: 'coins', coins: '400'  } },
+  coins_1000: { priceId: 'price_1T6OEeJTVSSOOaY3PdXqjGYm', mode: 'payment', meta: { product_type: 'coins', coins: '1000' } },
   // One-time shard packs
   shards_1:   { priceId: 'price_1T4w8TCZ0RoZVqTw0LCvZP1G',  mode: 'payment',      meta: { product_type: 'shards', shards: '1'   } },
   shards_3:   { priceId: 'price_1T4w8rCZ0RoZVqTw2VwM8oY5',  mode: 'payment',      meta: { product_type: 'shards', shards: '3'   } },
