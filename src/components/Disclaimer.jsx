@@ -42,7 +42,7 @@ export default function Disclaimer() {
           <li>• AI responses are generated and may occasionally be inaccurate or unexpected</li>
         </ul>
         <p style={{ color: 'var(--text-dim)', fontSize: '0.8rem', marginBottom: '20px', fontStyle: 'italic' }}>
-          By continuing, you acknowledge this is an early-access work in progress.
+          By continuing, you confirm that you are 18 years of age or older and acknowledge this is an early-access work in progress.
         </p>
         <button className="btn btn-gold" style={{ width: '100%', padding: '12px' }} onClick={accept}>
           Got it, let's play! →
