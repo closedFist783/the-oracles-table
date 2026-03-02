@@ -536,3 +536,48 @@ export const FEATS = [
   { name:'War Caster',       desc:'Advantage on CON saves to maintain concentration. Perform somatic components with hands full of weapons or shield. Cast a spell (instead of melee) as an opportunity attack.', prereq:'Spellcasting ability', prereqFn: isCaster },
   { name:'Weapon Master',    desc:'+1 STR or DEX. Gain proficiency with 4 weapons of your choice.' },
 ]
+
+// ── Racial Features ───────────────────────────────────────────────────────────
+export const RACIAL_FEATURES = {
+  Human:     [{ name: 'Versatile Training', item_type: 'feature', description: 'Humans gain one extra skill proficiency and adapt quickly to new challenges.', buff: '+1 to any one ability score (reflected in character stats)', quantity: 1, equipped: true }],
+  Elf:       [
+    { name: 'Darkvision',   item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Fey Ancestry', item_type: 'feature', description: 'You have advantage on saving throws against being charmed, and magic cannot put you to sleep.', buff: 'Advantage vs charm; immune to magical sleep', quantity: 1, equipped: true },
+    { name: 'Trance',       item_type: 'feature', description: 'Elves don\'t need to sleep. Instead, they meditate deeply for 4 hours a day, gaining the same benefit as 8 hours of sleep.', buff: 'Only needs 4 hours of trance instead of 8 hours of sleep', quantity: 1, equipped: true },
+  ],
+  Dwarf:     [
+    { name: 'Darkvision',        item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Dwarven Resilience',item_type: 'feature', description: 'You have advantage on saving throws against poison and resistance against poison damage.', buff: 'Advantage vs poison saves; resistance to poison damage', quantity: 1, equipped: true },
+    { name: 'Stonecunning',      item_type: 'feature', description: 'Whenever you make an Intelligence (History) check related to stonework, you are considered proficient.', buff: 'Double proficiency on stonework History checks', quantity: 1, equipped: true },
+    { name: 'Dwarven Combat Training', item_type: 'feature', description: 'You have proficiency with battleaxe, handaxe, light hammer, and warhammer.', buff: 'Proficiency: battleaxe, handaxe, light hammer, warhammer', quantity: 1, equipped: true },
+  ],
+  Halfling:  [
+    { name: 'Lucky',              item_type: 'feature', description: 'When you roll a 1 on a d20 for an attack roll, ability check, or saving throw, you can reroll and must use the new result.', buff: 'Reroll natural 1s on d20 rolls', quantity: 1, equipped: true },
+    { name: 'Brave',              item_type: 'feature', description: 'You have advantage on saving throws against being frightened.', buff: 'Advantage vs frightened condition', quantity: 1, equipped: true },
+    { name: 'Halfling Nimbleness',item_type: 'feature', description: 'You can move through the space of any creature that is of a size larger than yours.', buff: 'Move through larger creatures\' spaces', quantity: 1, equipped: true },
+  ],
+  Dragonborn:[
+    { name: 'Breath Weapon',    item_type: 'feature', description: 'You can exhale destructive energy as an action. Creatures in a 15-ft cone make a DEX save (DC 8 + CON mod + proficiency).', buff: '2d6 damage (draconic type); recharges on short/long rest', quantity: 1, equipped: true },
+    { name: 'Draconic Ancestry',item_type: 'feature', description: 'You have draconic heritage granting resistance to your damage type.', buff: 'Resistance to draconic ancestry damage type', quantity: 1, equipped: true },
+  ],
+  Gnome:     [
+    { name: 'Darkvision',   item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Gnome Cunning',item_type: 'feature', description: 'You have advantage on all Intelligence, Wisdom, and Charisma saving throws against magic.', buff: 'Advantage on INT/WIS/CHA saves vs magic', quantity: 1, equipped: true },
+  ],
+  'Half-Elf':[
+    { name: 'Darkvision',        item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Fey Ancestry',      item_type: 'feature', description: 'Advantage on saving throws against being charmed; magic cannot put you to sleep.', buff: 'Advantage vs charm; immune to magical sleep', quantity: 1, equipped: true },
+    { name: 'Skill Versatility', item_type: 'feature', description: 'You gain proficiency in two skills of your choice.', buff: '+2 additional skill proficiencies', quantity: 1, equipped: true },
+  ],
+  'Half-Orc':[
+    { name: 'Darkvision',          item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Relentless Endurance',item_type: 'feature', description: 'When you are reduced to 0 hit points but not killed outright, you can drop to 1 hit point instead. Once used, recharges on long rest.', buff: 'Drop to 1 HP instead of 0 once per long rest', quantity: 1, equipped: true },
+    { name: 'Savage Attacks',      item_type: 'feature', description: 'When you score a critical hit with a melee weapon attack, you can roll one of the weapon\'s damage dice one additional time.', buff: 'Extra damage die on critical hits with melee weapons', quantity: 1, equipped: true },
+    { name: 'Menacing',            item_type: 'feature', description: 'You gain proficiency in the Intimidation skill.', buff: 'Proficiency: Intimidation', quantity: 1, equipped: true },
+  ],
+  Tiefling:  [
+    { name: 'Darkvision',    item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
+    { name: 'Hellish Resistance', item_type: 'feature', description: 'Your infernal bloodline grants you resistance to fire damage.', buff: 'Resistance to fire damage', quantity: 1, equipped: true },
+    { name: 'Infernal Legacy',item_type: 'feature', description: 'You know the Thaumaturgy cantrip. At 3rd level, you can cast Hellish Rebuke once per long rest. At 5th level, you can cast Darkness once per long rest.', buff: 'Thaumaturgy cantrip; Hellish Rebuke at lvl 3; Darkness at lvl 5', quantity: 1, equipped: true },
+  ],
+}

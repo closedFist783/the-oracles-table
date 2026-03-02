@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { sendToGM, GM_PERSONAS } from '../lib/gm'
-import { xpToLevel, xpForNextLevel, xpProgress, HIT_DICE, getFeaturesForLevel, getAllFeaturesUpToLevel, profBonus, spellSlots } from '../lib/classes'
+import { xpToLevel, xpForNextLevel, xpProgress, HIT_DICE, getFeaturesForLevel, getAllFeaturesUpToLevel, profBonus, spellSlots, RACIAL_FEATURES } from '../lib/classes'
 import LevelUp from './LevelUp'
 import { playButtonClick, playDiceRoll, playLevelUp, playCritical } from '../lib/sounds'
 
@@ -563,48 +563,6 @@ function CollapsibleSection({ label, sectionKey, collapsed, onToggle, children }
       {!collapsed && <div className="collapsible-body">{children}</div>}
     </div>
   )
-}
-
-// ── Racial starting features ──────────────────────────────────────────────────
-const RACIAL_FEATURES = {
-  Human:     [{ name: 'Versatile Training', item_type: 'feature', description: 'Humans gain one extra skill proficiency and adapt quickly to new challenges.', buff: '+1 to any one ability score (reflected in character stats)', quantity: 1, equipped: true }],
-  Elf:       [
-    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
-    { name: 'Fey Ancestry', item_type: 'feature', description: 'You have advantage on saving throws against being charmed, and magic cannot put you to sleep.', buff: 'Advantage vs charm; immune to magical sleep', quantity: 1, equipped: true },
-  ],
-  Dwarf:     [
-    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
-    { name: 'Dwarven Resilience', item_type: 'feature', description: 'You have advantage on saving throws against poison and resistance against poison damage.', buff: 'Advantage vs poison saves; resistance to poison damage', quantity: 1, equipped: true },
-    { name: 'Stonecunning', item_type: 'feature', description: 'Whenever you make an Intelligence (History) check related to stonework, you are considered proficient.', buff: 'Double proficiency on stonework History checks', quantity: 1, equipped: true },
-  ],
-  Halfling:  [
-    { name: 'Lucky', item_type: 'feature', description: 'When you roll a 1 on a d20 for an attack roll, ability check, or saving throw, you can reroll and must use the new result.', buff: 'Reroll natural 1s on d20 rolls', quantity: 1, equipped: true },
-    { name: 'Brave', item_type: 'feature', description: 'You have advantage on saving throws against being frightened.', buff: 'Advantage vs frightened condition', quantity: 1, equipped: true },
-    { name: 'Halfling Nimbleness', item_type: 'feature', description: 'You can move through the space of any creature that is of a size larger than yours.', buff: 'Move through larger creatures\' spaces', quantity: 1, equipped: true },
-  ],
-  Dragonborn:[
-    { name: 'Breath Weapon', item_type: 'feature', description: 'You can exhale destructive energy as an action. Creatures in a 15-ft cone make a DEX save (DC 8 + CON mod + proficiency).', buff: '2d6 damage (your draconic damage type); recharges on short/long rest', quantity: 1, equipped: true },
-    { name: 'Draconic Ancestry', item_type: 'feature', description: 'You have draconic heritage granting resistance to your damage type.', buff: 'Resistance to draconic ancestry damage type', quantity: 1, equipped: true },
-  ],
-  Gnome:     [
-    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
-    { name: 'Gnome Cunning', item_type: 'feature', description: 'You have advantage on all Intelligence, Wisdom, and Charisma saving throws against magic.', buff: 'Advantage on INT/WIS/CHA saves vs magic', quantity: 1, equipped: true },
-  ],
-  'Half-Elf':[
-    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
-    { name: 'Fey Ancestry', item_type: 'feature', description: 'Advantage on saving throws against being charmed; magic cannot put you to sleep.', buff: 'Advantage vs charm; immune to magical sleep', quantity: 1, equipped: true },
-    { name: 'Skill Versatility', item_type: 'feature', description: 'You gain proficiency in two skills of your choice.', buff: '+2 additional skill proficiencies', quantity: 1, equipped: true },
-  ],
-  'Half-Orc':[
-    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
-    { name: 'Relentless Endurance', item_type: 'feature', description: 'When you are reduced to 0 hit points but not killed outright, you can drop to 1 hit point instead. Once used, recharges on long rest.', buff: 'Drop to 1 HP instead of 0 once per long rest', quantity: 1, equipped: true },
-    { name: 'Savage Attacks', item_type: 'feature', description: 'When you score a critical hit with a melee weapon attack, you can roll one of the weapon\'s damage dice one additional time.', buff: 'Extra damage die on critical hits with melee weapons', quantity: 1, equipped: true },
-  ],
-  Tiefling:  [
-    { name: 'Darkvision', item_type: 'feature', description: 'You can see in dim light within 60 feet as if it were bright light.', buff: 'Darkvision 60 ft', quantity: 1, equipped: true },
-    { name: 'Hellish Resistance', item_type: 'feature', description: 'Your infernal bloodline grants you resistance to fire damage.', buff: 'Resistance to fire damage', quantity: 1, equipped: true },
-    { name: 'Infernal Legacy', item_type: 'feature', description: 'You know the Thaumaturgy cantrip. At 3rd level, you can cast Hellish Rebuke once per long rest. At 5th level, you can cast Darkness once per long rest.', buff: 'Thaumaturgy cantrip; Hellish Rebuke at lvl 3; Darkness at lvl 5', quantity: 1, equipped: true },
-  ],
 }
 
 // ── DevTools (dev user only) ──────────────────────────────────────────────────
@@ -1268,6 +1226,19 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     setInventory(data || [])
   }
 
+  async function handleDropItem(item) {
+    // Remove from inventory
+    await supabase.from('inventory').delete().eq('id', item.id)
+    const { data } = await supabase.from('inventory').select('*').eq('campaign_id', campaign.id).order('created_at')
+    setInventory(data || [])
+    // Inject a context action message into chat (no coin cost, no GM trigger)
+    const actionText = `[You dropped: ${item.name}. It is now on the floor nearby.]`
+    const msg = { campaign_id: campaign.id, role: 'user', content: actionText, is_action: true }
+    const { data: inserted } = await supabase.from('campaign_messages').insert(msg).select().single()
+    const localMsg = { ...(inserted ?? msg), id: inserted?.id ?? `drop-${Date.now()}`, created_at: new Date().toISOString(), is_action: true }
+    setMessages(prev => [...prev, localMsg])
+  }
+
   async function initStartingGear() {
     // Only seed if inventory is genuinely empty for this campaign
     if (inventory.length > 0) return
@@ -1887,6 +1858,12 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
                           {expanded && <div className="inv-card-details">
                             {item.description && <div className="inv-card-desc">{item.description}</div>}
                             {item.buff && <div className="inv-card-buff">{item.buff}</div>}
+                            <button
+                              className="btn btn-sm"
+                              onClick={e => { e.stopPropagation(); if (window.confirm(`Drop ${item.name}?`)) handleDropItem(item) }}
+                              style={{ marginTop:'8px', fontSize:'0.72rem', background:'none', border:'1px solid var(--red)', color:'var(--red)', borderRadius:'4px', padding:'3px 8px', cursor:'pointer' }}>
+                              🗑️ Drop item
+                            </button>
                           </div>}
                         </div>
                       )
@@ -2140,6 +2117,13 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
                         )}
                       </div>
                     )}
+                  </div>
+                )
+              }
+              if (m.is_action) {
+                return (
+                  <div key={m.id} style={{ textAlign:'center', padding:'4px 0', fontSize:'0.75rem', color:'var(--text-dim)', fontStyle:'italic', opacity:0.7 }}>
+                    {m.content}
                   </div>
                 )
               }

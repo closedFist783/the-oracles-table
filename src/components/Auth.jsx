@@ -97,9 +97,9 @@ export default function Auth({ defaultTab = 'login', onBack }) {
               </p>
               <p style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '8px', textAlign: 'center', lineHeight: '1.5' }}>
                 By signing up, you agree to use this app responsibly. See our{' '}
-                <a href="https://the-oracles-table.vercel.app/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold-dim)', textDecoration: 'underline' }}>Terms</a>
+                <a href="/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold-dim)', textDecoration: 'underline' }}>Terms of Service</a>
                 {' '}and{' '}
-                <a href="https://the-oracles-table.vercel.app/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold-dim)', textDecoration: 'underline' }}>Privacy Policy</a>.
+                <a href="/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold-dim)', textDecoration: 'underline' }}>Privacy Policy</a>.
               </p>
             </>
           )}

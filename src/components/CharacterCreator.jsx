@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { randomName } from '../lib/names'
+import { RACIAL_FEATURES, CLASS_LEVELS } from '../lib/classes'
 
 const RACES = [
   { name: 'Human',      desc: 'Versatile and ambitious' },
@@ -305,6 +306,20 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
               </div>
             ))}
           </div>
+          {race && (RACIAL_FEATURES[race] ?? []).length > 0 && (
+            <div style={{ marginTop:'16px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'12px' }}>
+              <div style={{ fontSize:'0.72rem', color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'8px' }}>
+                ⭐ {race} Racial Traits
+              </div>
+              {(RACIAL_FEATURES[race] ?? []).map((f, fi) => (
+                <div key={f.name} style={{ marginBottom: fi < RACIAL_FEATURES[race].length-1 ? '8px' : 0, paddingBottom: fi < RACIAL_FEATURES[race].length-1 ? '8px' : 0, borderBottom: fi < RACIAL_FEATURES[race].length-1 ? '1px solid var(--border)' : 'none' }}>
+                  <div style={{ fontSize:'0.82rem', fontWeight:'bold', color:'var(--text)', marginBottom:'2px' }}>{f.name}</div>
+                  <div style={{ fontSize:'0.75rem', color:'var(--text-dim)', lineHeight:'1.5', marginBottom:'2px' }}>{f.description}</div>
+                  {f.buff && <div style={{ fontSize:'0.7rem', color:'var(--gold-dim)', fontStyle:'italic' }}>{f.buff}</div>}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="creator-nav">
             <span />
             <button className="btn btn-gold" disabled={!race} onClick={() => setStep(1)}>Next →</button>
@@ -322,6 +337,20 @@ export default function CharacterCreator({ session, profile, onDone, onCancel, o
               </div>
             ))}
           </div>
+          {cls && (CLASS_LEVELS[cls]?.[1]?.features ?? []).length > 0 && (
+            <div style={{ marginTop:'16px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:'12px' }}>
+              <div style={{ fontSize:'0.72rem', color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'8px' }}>
+                ⚡ {cls} Level 1 Abilities
+              </div>
+              {(CLASS_LEVELS[cls]?.[1]?.features ?? []).map((f, fi, arr) => (
+                <div key={f.name} style={{ marginBottom: fi < arr.length-1 ? '8px' : 0, paddingBottom: fi < arr.length-1 ? '8px' : 0, borderBottom: fi < arr.length-1 ? '1px solid var(--border)' : 'none' }}>
+                  <div style={{ fontSize:'0.82rem', fontWeight:'bold', color:'var(--text)', marginBottom:'2px' }}>{f.name}</div>
+                  <div style={{ fontSize:'0.75rem', color:'var(--text-dim)', lineHeight:'1.5', marginBottom:'2px' }}>{f.desc}</div>
+                  {f.buff && <div style={{ fontSize:'0.7rem', color:'var(--gold-dim)', fontStyle:'italic' }}>{f.buff}</div>}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="creator-nav">
             <button className="btn btn-ghost" onClick={() => setStep(0)}>← Back</button>
             <button className="btn btn-gold" disabled={!cls} onClick={() => setStep(2)}>Next →</button>
