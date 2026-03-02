@@ -216,6 +216,8 @@ export async function sendToGM(messages, character, { tier = 'none', persona = '
     body: { messages: payload, system, max_tokens: 1800 },
   })
 
-  if (error) throw error
+  if (error) throw new Error(error.message ?? JSON.stringify(error))
+  if (data?.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error))
+  if (!data?.text) throw new Error('Empty response from GM')
   return data.text
 }

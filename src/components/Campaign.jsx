@@ -1313,7 +1313,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       for (const name of conditionAdds) addCondition(name).catch(() => {})
       for (const name of conditionRemoves) removeCondition(name).catch(() => {})
     } catch (e) {
-      setError('The GM is unavailable right now. Please try again.')
+      setError('The GM is unavailable right now. Please try again. ' + (e?.message ? `(${e.message})` : ''))
     } finally {
       setTyping(false)
     }
