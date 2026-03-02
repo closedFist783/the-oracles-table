@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 // Stripe Dashboard → Products → Create product → Add price → copy "Price ID"
 const PRICES = {
   // One-time coin packs
-  coins_50:   { priceId: 'price_1T4w6XCZ0RoZVqTw4ALrmnVg',   mode: 'payment',      meta: { product_type: 'coins',  coins: '50'   } },
+  coins_50:   { priceId: 'price_1T6NV2JTVSSOOaY3keqjaFxF', mode: 'payment', meta: { product_type: 'coins',  coins: '50'   } },
   coins_150:  { priceId: 'price_1T4w7CCZ0RoZVqTwmRc9myzh',   mode: 'payment',      meta: { product_type: 'coins',  coins: '150'  } },
   coins_400:  { priceId: 'price_1T4w7WCZ0RoZVqTwyRfm43wm',  mode: 'payment',      meta: { product_type: 'coins',  coins: '400'  } },
   coins_1000: { priceId: 'price_1T4w7rCZ0RoZVqTwP0RPpCQE',   mode: 'payment',      meta: { product_type: 'coins',  coins: '1000' } },
