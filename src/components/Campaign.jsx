@@ -1679,7 +1679,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
               )
             })()}
 
-            {/* Spell Slots (casters only) */}
+            {/* Spell Slots (casters only — read-only, DM manages) */}
             {CASTER_CLASSES.includes(character.class) && (() => {
               const maxSlots = spellSlots(character.class, character.level)
               if (!maxSlots || maxSlots.length === 0) return null
@@ -1690,25 +1690,15 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
                     if (!total) return null
                     const level = idx + 1
                     const used = current[level] ?? 0
-                    const remaining = total - used
                     return (
                       <div key={level} style={{ marginBottom: '6px' }}>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: '3px' }}>Level {level}</div>
                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          {Array.from({ length: total }, (_, i) => {
-                            const isUsed = i < used
-                            return (
-                              <button key={i} onClick={() => updateSpellSlot(level, isUsed ? -1 : 1)}
-                                title={isUsed ? 'Click to restore slot' : 'Click to expend slot'}
-                                style={{
-                                  background: 'none', border: 'none', cursor: 'pointer',
-                                  fontSize: '1.1rem', padding: '1px', lineHeight: 1,
-                                  color: isUsed ? 'var(--text-dim)' : 'var(--gold)',
-                                }}>
-                                {isUsed ? '○' : '●'}
-                              </button>
-                            )
-                          })}
+                          {Array.from({ length: total }, (_, i) => (
+                            <span key={i} style={{ fontSize: '1.1rem', lineHeight: 1, color: i < used ? 'var(--text-dim)' : 'var(--gold)' }}>
+                              {i < used ? '○' : '●'}
+                            </span>
+                          ))}
                         </div>
                       </div>
                     )
@@ -1717,62 +1707,24 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
               )
             })()}
 
-            {/* Conditions */}
-            <div style={{ marginBottom: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>⚠️ Conditions</span>
-                <div style={{ position: 'relative' }}>
-                  <button onClick={() => setShowConditionsPicker(p => !p)}
-                    style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text-dim)', fontSize: '0.68rem', padding: '2px 6px', cursor: 'pointer' }}>
-                    + Add
-                  </button>
-                  {showConditionsPicker && (
-                    <div style={{
-                      position: 'absolute', right: 0, top: '100%', zIndex: 100,
-                      background: 'var(--surface)', border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius)', padding: '4px', minWidth: '140px',
-                      maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+            {/* Conditions (read-only — managed by the DM) */}
+            {(character.conditions ?? []).length > 0 && (
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>⚠️ Conditions</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {(character.conditions ?? []).map(cond => (
+                    <div key={cond} style={{
+                      background: (CONDITION_COLORS[cond] ?? '#555') + '33',
+                      border: `1px solid ${CONDITION_COLORS[cond] ?? '#555'}`,
+                      borderRadius: '12px', padding: '2px 10px',
+                      fontSize: '0.68rem', color: 'var(--text)',
                     }}>
-                      {COMMON_CONDITIONS.filter(c => !(character.conditions ?? []).includes(c)).map(cond => (
-                        <button key={cond} onClick={() => addCondition(cond)}
-                          style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', color: 'var(--text)', fontSize: '0.75rem', padding: '4px 8px', cursor: 'pointer', borderRadius: '3px' }}
-                          onMouseEnter={e => e.target.style.background = 'var(--surface2)'}
-                          onMouseLeave={e => e.target.style.background = 'none'}
-                        >{cond}</button>
-                      ))}
+                      {cond}
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
-              {(character.conditions ?? []).length === 0
-                ? <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>None</div>
-                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {(character.conditions ?? []).map(cond => (
-                      <div key={cond} style={{
-                        background: (CONDITION_COLORS[cond] ?? '#555') + '33',
-                        border: `1px solid ${CONDITION_COLORS[cond] ?? '#555'}`,
-                        borderRadius: '12px', padding: '2px 8px 2px 6px',
-                        fontSize: '0.68rem', color: 'var(--text)',
-                        display: 'flex', alignItems: 'center', gap: '4px',
-                      }}>
-                        <span>{cond}</span>
-                        <button onClick={() => removeCondition(cond)}
-                          style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', lineHeight: 1 }}>✕</button>
-                      </div>
-                    ))}
-                  </div>
-              }
-            </div>
-
-            {/* Rest Buttons */}
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
-              <button onClick={doLongRest} className="btn btn-ghost btn-sm" style={{ flex: 1, fontSize: '0.72rem' }} title="Restore all HP and spell slots">
-                ☀️ Long Rest
-              </button>
-              <button onClick={doShortRest} className="btn btn-ghost btn-sm" style={{ flex: 1, fontSize: '0.72rem' }} title={`Restore ~${Math.floor((HIT_DICE[character.class]??8)/2)} HP`}>
-                🌙 Short Rest
-              </button>
-            </div>
+            )}
 
             {/* Collapsible: Saving Throws */}
             <CollapsibleSection label="Saving Throws" sectionKey="saves" collapsed={collapsedSections.has('saves')} onToggle={toggleSection}>
@@ -1876,7 +1828,23 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
             {inventoryTab === 'abilities' && (() => {
               const abilities = inventory.filter(i => ['ability','feature','spell'].includes(i.item_type))
               if (!abilities.length) return <p className="empty-state" style={{ padding:'16px 0', fontSize:'0.82rem' }}>No abilities yet. Level up to gain class features.</p>
-              return abilities.map(item => {
+
+              // Spell level helper — parse level from buff or description
+              function spellLevel(item) {
+                if (item.item_type !== 'spell') return null
+                const text = (item.buff ?? '') + ' ' + (item.description ?? '')
+                if (/cantrip/i.test(text)) return 0
+                const m = text.match(/(\d+)(st|nd|rd|th)[- ]level/i) ?? text.match(/level\s*(\d+)/i)
+                return m ? parseInt(m[1]) : 99
+              }
+
+              const raceFeatures  = abilities.filter(i => i.item_type === 'feature')
+              const classAbilities = abilities.filter(i => i.item_type === 'ability')
+              const spells = abilities.filter(i => i.item_type === 'spell').sort((a, b) => (spellLevel(a) ?? 99) - (spellLevel(b) ?? 99))
+
+              const SPELL_LEVEL_LABELS = ['Cantrip', '1st Level', '2nd Level', '3rd Level', '4th Level', '5th Level', '6th Level', '7th Level', '8th Level', '9th Level']
+
+              function renderAbilityCard(item) {
                 const expanded = expandedItems.has(item.id)
                 return (
                   <div key={item.id} className="inv-card expandable" onClick={() => toggleItem(item.id)}>
@@ -1890,7 +1858,66 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
                     </div>}
                   </div>
                 )
-              })
+              }
+
+              const sections = []
+
+              // Race traits
+              if (raceFeatures.length > 0) {
+                const sk = 'ab-racial'
+                const isCollapsed = collapsedSections.has(sk)
+                sections.push(
+                  <div key="racial" className="inv-type-section">
+                    <div className="inv-type-header clickable" onClick={() => toggleSection(sk)}>
+                      <span>⭐ {character.race} Traits</span>
+                      <span className={`section-chevron${isCollapsed ? '' : ' open'}`}>▸</span>
+                    </div>
+                    {!isCollapsed && raceFeatures.map(renderAbilityCard)}
+                  </div>
+                )
+              }
+
+              // Class abilities
+              if (classAbilities.length > 0) {
+                const sk = 'ab-class'
+                const isCollapsed = collapsedSections.has(sk)
+                sections.push(
+                  <div key="class" className="inv-type-section">
+                    <div className="inv-type-header clickable" onClick={() => toggleSection(sk)}>
+                      <span>⚔️ {character.class} Abilities</span>
+                      <span className={`section-chevron${isCollapsed ? '' : ' open'}`}>▸</span>
+                    </div>
+                    {!isCollapsed && classAbilities.map(renderAbilityCard)}
+                  </div>
+                )
+              }
+
+              // Spells grouped by level
+              if (spells.length > 0) {
+                const byLevel = {}
+                spells.forEach(s => {
+                  const lvl = spellLevel(s) ?? 99
+                  if (!byLevel[lvl]) byLevel[lvl] = []
+                  byLevel[lvl].push(s)
+                })
+                Object.entries(byLevel).sort(([a],[b]) => a-b).forEach(([lvl, group]) => {
+                  const lvlNum = parseInt(lvl)
+                  const label = lvlNum <= 9 ? (SPELL_LEVEL_LABELS[lvlNum] ?? `Level ${lvlNum}`) : 'Spells'
+                  const sk = `ab-spell-${lvl}`
+                  const isCollapsed = collapsedSections.has(sk)
+                  sections.push(
+                    <div key={`spell-${lvl}`} className="inv-type-section">
+                      <div className="inv-type-header clickable" onClick={() => toggleSection(sk)}>
+                        <span>✨ {label}</span>
+                        <span className={`section-chevron${isCollapsed ? '' : ' open'}`}>▸</span>
+                      </div>
+                      {!isCollapsed && group.map(renderAbilityCard)}
+                    </div>
+                  )
+                })
+              }
+
+              return sections.length > 0 ? sections : <p className="empty-state" style={{ padding:'16px 0', fontSize:'0.82rem' }}>No abilities yet.</p>
             })()}
           </>)}
 
