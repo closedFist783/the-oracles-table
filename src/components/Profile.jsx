@@ -295,12 +295,12 @@ export default function Profile({ user, profile, onProfileUpdate, onBack, onSign
       <h3 style={{ marginTop: '32px', marginBottom: '14px', fontSize: '0.9rem', color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
         Danger Zone
       </h3>
-      <DeleteAccount session={session} onDeleted={() => window.location.reload()} />
+      <DeleteAccount onDeleted={() => window.location.reload()} />
     </div>
   )
 }
 
-function DeleteAccount({ session, onDeleted }) {
+function DeleteAccount({ onDeleted }) {
   const [confirm, setConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
