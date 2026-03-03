@@ -1280,7 +1280,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       setCharacter(c => ({ ...c, max_hp: maxHp, current_hp: maxHp }))
     }
     try {
-      const gmRaw = await sendToGM([], character, { tier: profile?.subscription_tier, persona: gmPersona })
+      const gmRaw = await sendToGM([], character, { tier: profile?.subscription_tier, persona: gmPersona, inventory })
       const { roll, npcs: newNpcs, removeNpcs: deadNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems, restPrompt, conditionAdds, conditionRemoves } = parseGMMessage(gmRaw)
       const msg = { campaign_id: campaign.id, role: 'assistant', content: gmRaw }
       await supabase.from('campaign_messages').insert(msg)
@@ -1404,7 +1404,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
       await deleteLastDBMessages(1)
       const msgsWithoutLastGM = messages.filter(m => m.id !== lastGM.id)
       setMessages(msgsWithoutLastGM)
-      const gmRaw = await sendToGM(msgsWithoutLastGM, character, { tier: profile?.subscription_tier, persona: gmPersona })
+      const gmRaw = await sendToGM(msgsWithoutLastGM, character, { tier: profile?.subscription_tier, persona: gmPersona, inventory })
       const { roll, npcs: newNpcs, removeNpcs: deadNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems, restPrompt, conditionAdds, conditionRemoves } = parseGMMessage(gmRaw)
       await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'assistant', content: gmRaw })
       setMessages(prev => [...prev, { id: 'gm-' + Date.now(), role: 'assistant', content: gmRaw, campaign_id: campaign.id, created_at: new Date().toISOString() }])
@@ -1469,7 +1469,7 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
 
       await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'user', content: userText })
 
-      const gmRaw  = await sendToGM(nextMsgs, character, { tier: profile?.subscription_tier, persona: gmPersona })
+      const gmRaw  = await sendToGM(nextMsgs, character, { tier: profile?.subscription_tier, persona: gmPersona, inventory })
       const { roll, npcs: newNpcs, removeNpcs: deadNpcs, newQuests, completedQuests, xpAward, hpUpdate, acUpdate, newItems, removeItems, restPrompt, conditionAdds, conditionRemoves } = parseGMMessage(gmRaw)
 
       await supabase.from('campaign_messages').insert({ campaign_id: campaign.id, role: 'assistant', content: gmRaw })

@@ -20,12 +20,32 @@ const PERSONA_PROMPTS = {
   horror:  `\nTONE — HORROR: Infuse every scene with creeping dread. Describe the uncanny, the grotesque, the psychologically unsettling. The monster is often unseen. Safety is an illusion. Channel Lovecraft, not gore.`,
 }
 
-export function buildSystemPrompt(character, persona = 'classic') {
+export function buildSystemPrompt(character, persona = 'classic', inventory = []) {
   const mod = (n) => Math.floor((n - 10) / 2)
   const sign = (n) => (n >= 0 ? `+${n}` : `${n}`)
   const hp = character.current_hp ?? character.max_hp ?? 0
   const maxHp = character.max_hp ?? 0
   const personaBlock = PERSONA_PROMPTS[persona] ?? ''
+
+  // Build inventory summary
+  const weapons   = inventory.filter(i => i.item_type === 'weapon')
+  const armor     = inventory.filter(i => i.item_type === 'armor')
+  const items     = inventory.filter(i => !['weapon','armor','ability','feature','spell'].includes(i.item_type))
+  const spells    = inventory.filter(i => i.item_type === 'spell')
+  const features  = inventory.filter(i => ['ability','feature'].includes(i.item_type))
+
+  const fmtItem = i => i.buff ? `${i.name} (${i.buff})` : i.name
+
+  const inventoryBlock = inventory.length === 0 ? '' : `
+Current inventory (authoritative — only reference items listed here):
+- Weapons: ${weapons.length ? weapons.map(fmtItem).join(', ') : 'none'}
+- Armor/Shields: ${armor.length ? armor.map(fmtItem).join(', ') : 'none'}
+- Items: ${items.length ? items.map(i => i.name + (i.quantity > 1 ? ` ×${i.quantity}` : '')).join(', ') : 'none'}
+${spells.length ? `- Known spells: ${spells.map(i => i.name).join(', ')}` : ''}
+${features.length ? `- Racial/class traits: ${features.map(i => i.name).join(', ')}` : ''}
+${(character.conditions ?? []).length ? `- Active conditions: ${character.conditions.join(', ')}` : ''}
+IMPORTANT: If the player references a weapon or item, check this list first. Never tell the player they don't have something that appears above.`
+
   return `You are a Dungeon Master running a solo D&D 5e adventure.${personaBlock}
 
 
@@ -37,6 +57,7 @@ The player's character:
 - HP: ${hp}/${maxHp}
 - STR ${character.str_stat} (${sign(mod(character.str_stat))}), DEX ${character.dex_stat} (${sign(mod(character.dex_stat))}), CON ${character.con_stat} (${sign(mod(character.con_stat))}), INT ${character.int_stat} (${sign(mod(character.int_stat))}), WIS ${character.wis_stat} (${sign(mod(character.wis_stat))}), CHA ${character.cha_stat} (${sign(mod(character.cha_stat))})
 ${character.backstory ? `- Backstory: ${character.backstory}` : ''}
+${inventoryBlock}
 
 Rules:
 - Narrate vividly in 2–4 paragraphs per response
@@ -199,8 +220,8 @@ Do NOT narrate the effects of the rest yourself. Do NOT choose long vs short res
 After the player's rest result arrives (e.g. "[Long Rest taken — HP fully restored...]"), narrate the aftermath: how they feel, what changes in the world, what they notice when they wake/rise.`
 }
 
-export async function sendToGM(messages, character, { tier = 'none', persona = 'classic' } = {}) {
-  const system   = buildSystemPrompt(character, persona)
+export async function sendToGM(messages, character, { tier = 'none', persona = 'classic', inventory = [] } = {}) {
+  const system   = buildSystemPrompt(character, persona, inventory)
   const ctxLimit = TIER_CONTEXT[tier] ?? 12
 
   const filtered = messages
