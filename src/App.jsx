@@ -17,22 +17,37 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [stripeToast, setStripeToast] = useState(null) // 'success' | 'canceled' | null
   const [authMode, setAuthMode] = useState(null) // null=landing | 'signin' | 'signup'
+  const [verifying, setVerifying] = useState(false)   // email confirmation in progress
+  const [verifyError, setVerifyError] = useState(null) // email confirmation error
 
-  // Handle Stripe redirect back to the app
+  // Handle Stripe redirect + Supabase email confirmation code
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const stripe = params.get('stripe')
+    const code   = params.get('code')
+    const type   = params.get('type') // 'signup' | 'recovery' etc.
+
     if (stripe === 'success') {
       setStripeToast('success')
       setView('upgrade')
       setTimeout(() => setStripeToast(null), 6000)
+      window.history.replaceState({}, '', window.location.pathname)
     } else if (stripe === 'canceled') {
       setStripeToast('canceled')
       setView('upgrade')
       setTimeout(() => setStripeToast(null), 4000)
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (code) {
+      // Supabase PKCE email confirmation
+      window.history.replaceState({}, '', window.location.pathname)
+      setVerifying(true)
+      supabase.auth.exchangeCodeForSession(code)
+        .then(({ data, error }) => {
+          if (error) { setVerifyError(error.message); setVerifying(false) }
+          // On success, onAuthStateChange will fire and handle the rest
+        })
+        .catch(e => { setVerifyError(e.message); setVerifying(false) })
     }
-    // Clean up the URL so it doesn't re-trigger on refresh
-    if (stripe) window.history.replaceState({}, '', window.location.pathname)
   }, [])
 
   useEffect(() => {
@@ -50,9 +65,12 @@ export default function App() {
   }, [])
 
   async function fetchProfile(userId) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    setProfile(data)
+    try {
+      const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+      setProfile(data)
+    } catch { /* profile load failed — still proceed */ }
     setLoading(false)
+    setVerifying(false) // clear email verification spinner on sign-in
   }
 
   async function refreshProfile() {
@@ -68,6 +86,28 @@ export default function App() {
     setActiveCampaign(campaign)
     setView('campaign')
   }
+
+  // Email confirmation — show a dedicated screen while verifying
+  if (verifying || verifyError) return (
+    <>
+      <Disclaimer />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '20px', padding: '24px' }}>
+        <div style={{ fontSize: '3rem' }}>{verifyError ? '⚠️' : '⚔️'}</div>
+        <h2 style={{ color: 'var(--gold)', margin: 0 }}>
+          {verifyError ? 'Verification Failed' : 'Confirming your email…'}
+        </h2>
+        {verifyError
+          ? <>
+              <p style={{ color: 'var(--text-dim)', textAlign: 'center', maxWidth: '360px', margin: 0 }}>{verifyError}</p>
+              <button className="btn btn-gold" onClick={() => { setVerifyError(null); setAuthMode('signin') }}>
+                Back to Sign In
+              </button>
+            </>
+          : <p style={{ color: 'var(--text-dim)', fontStyle: 'italic', margin: 0 }}>Hang tight, your adventure awaits…</p>
+        }
+      </div>
+    </>
+  )
 
   if (loading) return (
     <>
