@@ -48,6 +48,22 @@ export default function App() {
         })
         .catch(e => { setVerifyError(e.message); setVerifying(false) })
     }
+
+    // Handle hash-fragment errors (e.g. expired OTP link: #error=access_denied&error_code=otp_expired)
+    const hash = window.location.hash
+    if (hash.includes('error=')) {
+      const hashParams = new URLSearchParams(hash.replace(/^#/, ''))
+      const errDesc = hashParams.get('error_description')
+      const errCode = hashParams.get('error_code')
+      window.history.replaceState({}, '', window.location.pathname)
+      if (errCode === 'otp_expired' || errDesc) {
+        setVerifyError(
+          errCode === 'otp_expired'
+            ? 'Your confirmation link has expired. Please sign up again to get a new one.'
+            : decodeURIComponent((errDesc ?? '').replace(/\+/g, ' '))
+        )
+      }
+    }
   }, [])
 
   useEffect(() => {
