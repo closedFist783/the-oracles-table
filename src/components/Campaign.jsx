@@ -1217,6 +1217,12 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
     setInventory(data || [])
   }
 
+  async function toggleEquipped(item) {
+    const newEquipped = !item.equipped
+    await supabase.from('inventory').update({ equipped: newEquipped }).eq('id', item.id)
+    setInventory(prev => prev.map(i => i.id === item.id ? { ...i, equipped: newEquipped } : i))
+  }
+
   async function removeInventoryItems(items) {
     if (!items?.length) return
     for (const item of items) {
@@ -1684,21 +1690,26 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
               const maxSlots = spellSlots(character.class, character.level)
               if (!maxSlots || maxSlots.length === 0) return null
               const current = character.spell_slots_current ?? {}
+              const ordinal = n => ['','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'][n] ?? `${n}th`
               return (
                 <CollapsibleSection label="✨ Spell Slots" sectionKey="spellslots" collapsed={collapsedSections.has('spellslots')} onToggle={toggleSection}>
                   {maxSlots.map((total, idx) => {
                     if (!total) return null
                     const level = idx + 1
                     const used = current[level] ?? 0
+                    const remaining = total - used
                     return (
-                      <div key={level} style={{ marginBottom: '6px' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: '3px' }}>Level {level}</div>
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      <div key={level} style={{ display:'flex', alignItems:'center', marginBottom:'6px', gap:'8px' }}>
+                        <div style={{ fontSize:'0.72rem', color:'var(--text-dim)', minWidth:'36px' }}>{ordinal(level)}</div>
+                        <div style={{ display:'flex', gap:'3px', flexWrap:'wrap', flex:1 }}>
                           {Array.from({ length: total }, (_, i) => (
-                            <span key={i} style={{ fontSize: '1.1rem', lineHeight: 1, color: i < used ? 'var(--text-dim)' : 'var(--gold)' }}>
+                            <span key={i} style={{ fontSize:'1rem', lineHeight:1, color: i < used ? 'var(--text-dim)' : 'var(--gold)' }}>
                               {i < used ? '○' : '●'}
                             </span>
                           ))}
+                        </div>
+                        <div style={{ fontSize:'0.68rem', color: remaining === 0 ? 'var(--red)' : 'var(--text-dim)', minWidth:'28px', textAlign:'right' }}>
+                          {remaining}/{total}
                         </div>
                       </div>
                     )
@@ -1810,12 +1821,20 @@ export default function Campaign({ session, profile, campaign, onCoinsChanged, o
                           {expanded && <div className="inv-card-details">
                             {item.description && <div className="inv-card-desc">{item.description}</div>}
                             {item.buff && <div className="inv-card-buff">{item.buff}</div>}
-                            <button
-                              className="btn btn-sm"
-                              onClick={e => { e.stopPropagation(); if (window.confirm(`Drop ${item.name}?`)) handleDropItem(item) }}
-                              style={{ marginTop:'8px', fontSize:'0.72rem', background:'none', border:'1px solid var(--red)', color:'var(--red)', borderRadius:'4px', padding:'3px 8px', cursor:'pointer' }}>
-                              🗑️ Drop item
-                            </button>
+                            <div style={{ display:'flex', gap:'6px', marginTop:'8px', flexWrap:'wrap' }}>
+                              {['weapon','armor'].includes(item.item_type) && (
+                                <button
+                                  onClick={e => { e.stopPropagation(); toggleEquipped(item) }}
+                                  style={{ fontSize:'0.72rem', background: item.equipped ? 'rgba(201,168,76,0.15)' : 'none', border: `1px solid ${item.equipped ? 'var(--gold)' : 'var(--border)'}`, color: item.equipped ? 'var(--gold)' : 'var(--text-dim)', borderRadius:'4px', padding:'3px 8px', cursor:'pointer' }}>
+                                  {item.equipped ? '✓ Equipped' : 'Equip'}
+                                </button>
+                              )}
+                              <button
+                                onClick={e => { e.stopPropagation(); if (window.confirm(`Drop ${item.name}?`)) handleDropItem(item) }}
+                                style={{ fontSize:'0.72rem', background:'none', border:'1px solid var(--red)', color:'var(--red)', borderRadius:'4px', padding:'3px 8px', cursor:'pointer' }}>
+                                🗑️ Drop
+                              </button>
+                            </div>
                           </div>}
                         </div>
                       )
