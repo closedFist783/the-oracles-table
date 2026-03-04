@@ -38,15 +38,14 @@ export default function App() {
       setTimeout(() => setStripeToast(null), 4000)
       window.history.replaceState({}, '', window.location.pathname)
     } else if (code) {
-      // Supabase PKCE email confirmation
+      // Supabase PKCE email confirmation — detectSessionInUrl handles the exchange
+      // automatically on client init and fires onAuthStateChange → fetchProfile clears verifying
       window.history.replaceState({}, '', window.location.pathname)
       setVerifying(true)
-      supabase.auth.exchangeCodeForSession(code)
-        .then(({ data, error }) => {
-          if (error) { setVerifyError(error.message); setVerifying(false) }
-          // On success, onAuthStateChange will fire and handle the rest
-        })
-        .catch(e => { setVerifyError(e.message); setVerifying(false) })
+      // Safety timeout: if onAuthStateChange never fires (e.g. code expired), bail after 8s
+      setTimeout(() => {
+        setVerifying(v => { if (v) { setVerifyError('Confirmation timed out — your link may have expired. Please sign up again.') } return false })
+      }, 8000)
     }
 
     // Handle hash-fragment errors (e.g. expired OTP link: #error=access_denied&error_code=otp_expired)
